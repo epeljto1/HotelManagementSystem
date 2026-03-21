@@ -52,6 +52,26 @@ public class DatabaseInitializer {
             )
         """;
 
+        String createServiceUsage = """
+    CREATE TABLE NBP_SERVICE_USAGE (
+        ID NUMBER PRIMARY KEY,
+        STAY_ID NUMBER,
+        SERVICE_ID NUMBER,
+        QUANTITY NUMBER,
+        USAGE_DATE DATE,
+        TOTAL_PRICE NUMBER
+    )
+""";
+
+        String createInvoice = """
+    CREATE TABLE NBP_INVOICE (
+        ID NUMBER PRIMARY KEY,
+        ISSUE_DATE DATE,
+        TOTAL_AMOUNT NUMBER,
+        STATUS VARCHAR2(50),
+        STAY_ID NUMBER
+    )
+""";
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
@@ -65,6 +85,13 @@ public class DatabaseInitializer {
             }
             if (!tableExists(conn, "NBP_GUEST")) {
                 stmt.executeUpdate(createGuest);
+            }
+            if (!tableExists(conn, "NBP_SERVICE_USAGE")) {
+                stmt.executeUpdate(createServiceUsage);
+            }
+
+            if (!tableExists(conn, "NBP_INVOICE")) {
+                stmt.executeUpdate(createInvoice);
             }
         } catch (SQLException e) {
             e.printStackTrace();
