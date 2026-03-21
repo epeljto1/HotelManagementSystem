@@ -52,6 +52,18 @@ public class DatabaseInitializer {
             )
         """;
 
+        String createPayment = """
+        CREATE TABLE NBP_PAYMENT (
+            ID NUMBER PRIMARY KEY,
+            PAYMENT_DATE TIMESTAMP,
+            AMOUNT NUMBER,
+            PAYMENT_METHOD VARCHAR2(50),
+            INVOICE_ID NUMBER
+        )
+        """;
+
+        String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
+
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
@@ -66,6 +78,17 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_GUEST")) {
                 stmt.executeUpdate(createGuest);
             }
+
+            if (!tableExists(conn, "NBP_PAYMENT")) {
+                stmt.executeUpdate(createPayment);
+                System.out.println("Table NBP_PAYMENT created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_PAYMENT_SEQ")) {
+                stmt.executeUpdate(createPaymentSeq);
+                System.out.println("Sequence NBP_PAYMENT_SEQ created.");
+            }
+
         } catch (SQLException e) {
             e.printStackTrace();
         }
@@ -80,6 +103,17 @@ public class DatabaseInitializer {
             var rs = ps.executeQuery();
             rs.next();
             return rs.getInt(1) > 0;
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static boolean sequenceExists(Connection conn, String seqName) {
+        String query = "SELECT COUNT(*) FROM user_sequences WHERE sequence_name = ?";
+        try (var ps = conn.prepareStatement(query)) {
+            ps.setString(1, seqName.toUpperCase());
+            var rs = ps.executeQuery();
+            return rs.next() && rs.getInt(1) > 0;
         } catch (SQLException e) {
             return false;
         }
