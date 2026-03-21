@@ -10,7 +10,6 @@ public class DatabaseInitializer {
     }
 
     public static void initialize() throws SQLException {
-        // Dodati sve tabele u ovaj fajl na isti način
         String createAddress = """
             CREATE TABLE NBP_ADDRESS (
                 ID NUMBER PRIMARY KEY,
@@ -53,33 +52,34 @@ public class DatabaseInitializer {
         """;
 
         String createServiceUsage = """
-    CREATE TABLE NBP_SERVICE_USAGE (
-        ID NUMBER PRIMARY KEY,
-        STAY_ID NUMBER,
-        SERVICE_ID NUMBER,
-        QUANTITY NUMBER,
-        USAGE_DATE DATE,
-        TOTAL_PRICE NUMBER
-    )
-""";
+            CREATE TABLE NBP_SERVICE_USAGE (
+                ID NUMBER PRIMARY KEY,
+                STAY_ID NUMBER,
+                SERVICE_ID NUMBER,
+                QUANTITY NUMBER,
+                USAGE_DATE DATE,
+                TOTAL_PRICE NUMBER
+            )
+        """;
 
         String createInvoice = """
-    CREATE TABLE NBP_INVOICE (
-        ID NUMBER PRIMARY KEY,
-        ISSUE_DATE DATE,
-        TOTAL_AMOUNT NUMBER,
-        STATUS VARCHAR2(50),
-        STAY_ID NUMBER
-    )
-""";
+            CREATE TABLE NBP_INVOICE (
+                ID NUMBER PRIMARY KEY,
+                ISSUE_DATE DATE,
+                TOTAL_AMOUNT NUMBER,
+                STATUS VARCHAR2(50),
+                STAY_ID NUMBER
+            )
+        """;
+
         String createPayment = """
-        CREATE TABLE NBP_PAYMENT (
-            ID NUMBER PRIMARY KEY,
-            PAYMENT_DATE TIMESTAMP,
-            AMOUNT NUMBER,
-            PAYMENT_METHOD VARCHAR2(50),
-            INVOICE_ID NUMBER
-        )
+            CREATE TABLE NBP_PAYMENT (
+                ID NUMBER PRIMARY KEY,
+                PAYMENT_DATE TIMESTAMP,
+                AMOUNT NUMBER,
+                PAYMENT_METHOD VARCHAR2(50),
+                INVOICE_ID NUMBER
+            )
         """;
 
         String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
@@ -88,23 +88,11 @@ public class DatabaseInitializer {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
 
-            // Create tables only if they don't already exist
-            if (!tableExists(conn, "NBP_ADDRESS")) {
-                stmt.executeUpdate(createAddress);
-            }
-            if (!tableExists(conn, "NBP_HOTEL")) {
-                stmt.executeUpdate(createHotel);
-            }
-            if (!tableExists(conn, "NBP_GUEST")) {
-                stmt.executeUpdate(createGuest);
-            }
-            if (!tableExists(conn, "NBP_SERVICE_USAGE")) {
-                stmt.executeUpdate(createServiceUsage);
-            }
-
-            if (!tableExists(conn, "NBP_INVOICE")) {
-                stmt.executeUpdate(createInvoice);
-            }
+            if (!tableExists(conn, "NBP_ADDRESS")) stmt.executeUpdate(createAddress);
+            if (!tableExists(conn, "NBP_HOTEL")) stmt.executeUpdate(createHotel);
+            if (!tableExists(conn, "NBP_GUEST")) stmt.executeUpdate(createGuest);
+            if (!tableExists(conn, "NBP_SERVICE_USAGE")) stmt.executeUpdate(createServiceUsage);
+            if (!tableExists(conn, "NBP_INVOICE")) stmt.executeUpdate(createInvoice);
 
             if (!tableExists(conn, "NBP_PAYMENT")) {
                 stmt.executeUpdate(createPayment);
@@ -119,14 +107,12 @@ public class DatabaseInitializer {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-
-
     }
 
     private static boolean tableExists(Connection conn, String tableName) {
         String query = "SELECT COUNT(*) FROM user_tables WHERE table_name = ?";
         try (var ps = conn.prepareStatement(query)) {
-            ps.setString(1, tableName);
+            ps.setString(1, tableName.toUpperCase());
             var rs = ps.executeQuery();
             rs.next();
             return rs.getInt(1) > 0;
@@ -145,5 +131,4 @@ public class DatabaseInitializer {
             return false;
         }
     }
-
 }
