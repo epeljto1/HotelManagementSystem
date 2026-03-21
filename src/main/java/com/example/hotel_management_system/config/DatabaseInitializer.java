@@ -36,6 +36,22 @@ public class DatabaseInitializer {
             )
         """;
 
+        String createGuest = """
+            CREATE TABLE NBP_GUEST (
+                ID NUMBER PRIMARY KEY,
+                FIRST_NAME VARCHAR2(255),
+                LAST_NAME VARCHAR2(255),
+                EMAIL VARCHAR2(255),
+                PHONE_NUMBER VARCHAR2(20),
+                DATE_OF_BIRTH DATE,
+                DOCUMENT_NUMBER VARCHAR2(100),
+                ADDRESS_ID NUMBER,
+                CONSTRAINT FK_GUEST_ADDRESS
+                    FOREIGN KEY (ADDRESS_ID)
+                    REFERENCES NBP_ADDRESS(ID)
+            )
+        """;
+
         String createServiceUsage = """
     CREATE TABLE NBP_SERVICE_USAGE (
         ID NUMBER PRIMARY KEY,
@@ -56,21 +72,6 @@ public class DatabaseInitializer {
         STAY_ID NUMBER
     )
 """;
-        String createGuest = """
-            CREATE TABLE NBP_GUEST (
-                ID NUMBER PRIMARY KEY,
-                FIRST_NAME VARCHAR2(255),
-                LAST_NAME VARCHAR2(255),
-                EMAIL VARCHAR2(255),
-                PHONE_NUMBER VARCHAR2(20),
-                DATE_OF_BIRTH DATE,
-                DOCUMENT_NUMBER VARCHAR2(100),
-                ADDRESS_ID NUMBER,
-                CONSTRAINT FK_GUEST_ADDRESS
-                    FOREIGN KEY (ADDRESS_ID)
-                    REFERENCES NBP_ADDRESS(ID)
-            )
-        """;
 
         String createPayment = """
         CREATE TABLE NBP_PAYMENT (
