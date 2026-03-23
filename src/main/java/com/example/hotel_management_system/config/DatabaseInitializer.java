@@ -106,6 +106,25 @@ public class DatabaseInitializer {
 
         String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
 
+        String createRoom = """
+                    CREATE TABLE NBP_ROOM (
+                        ID NUMBER PRIMARY KEY,
+                        ROOM_NUMBER VARCHAR2(20),
+                        FLOOR_NUMBER NUMBER,
+                        STATUS VARCHAR2(50) DEFAULT 'AVAILABLE',
+                        HOTEL_ID NUMBER NOT NULL,
+                        ROOM_TYPE_ID NUMBER NOT NULL,
+                        CONSTRAINT CHK_ROOM_STATUS
+                            CHECK (STATUS IN ('AVAILABLE', 'OCCUPIED', 'RESERVED', 'OUT_OF_SERVICE')),
+                        CONSTRAINT FK_ROOM_HOTEL
+                            FOREIGN KEY (HOTEL_ID)
+                            REFERENCES NBP_HOTEL(ID),
+                        CONSTRAINT FK_ROOM_ROOM_TYPE
+                            FOREIGN KEY (ROOM_TYPE_ID)
+                            REFERENCES NBP_ROOM_TYPE(ID)
+                    )
+                """;
+
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
@@ -134,6 +153,11 @@ public class DatabaseInitializer {
             if (!sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
                 stmt.executeUpdate(createDiscountSeq);
                 System.out.println("Sequence NBP_DISCOUNT_SEQ created.");
+            }
+
+            if (!tableExists(conn, "NBP_ROOM")) {
+                stmt.executeUpdate(createRoom);
+                System.out.println("Table NBP_ROOM created.");
             }
 
         } catch (SQLException e) {
