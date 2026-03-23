@@ -81,6 +81,15 @@ public class DatabaseInitializer {
                 INVOICE_ID NUMBER
             )
         """;
+        String createRoomType = """
+           CREATE TABLE NBP_ROOM_TYPE (
+             ID NUMBER PRIMARY KEY,
+             NAME VARCHAR2(100),
+             DESCRIPTION VARCHAR2(500),
+             CAPACITY NUMBER,
+             PRICE_PER_NIGHT NUMBER
+           )
+        """;
 
         String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
 
@@ -106,6 +115,7 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_GUEST")) stmt.executeUpdate(createGuest);
             if (!tableExists(conn, "NBP_SERVICE_USAGE")) stmt.executeUpdate(createServiceUsage);
             if (!tableExists(conn, "NBP_INVOICE")) stmt.executeUpdate(createInvoice);
+            if (!tableExists(conn, "NBP_ROOM_TYPE")) stmt.executeUpdate(createRoomType);
 
             if (!tableExists(conn, "NBP_PAYMENT")) {
                 stmt.executeUpdate(createPayment);
