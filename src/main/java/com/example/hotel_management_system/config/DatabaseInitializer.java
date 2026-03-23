@@ -84,6 +84,19 @@ public class DatabaseInitializer {
 
         String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
 
+        String createDiscount = """
+            CREATE TABLE NBP_DISCOUNT (
+                ID NUMBER PRIMARY KEY,
+                NAME VARCHAR2(100),
+                PERCENTAGE NUMBER,
+                START_DATE DATE,
+                END_DATE DATE,
+                DESCRIPTION VARCHAR2(500)
+            )
+        """;
+
+        String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
+
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
@@ -102,6 +115,15 @@ public class DatabaseInitializer {
             if (!sequenceExists(conn, "NBP_PAYMENT_SEQ")) {
                 stmt.executeUpdate(createPaymentSeq);
                 System.out.println("Sequence NBP_PAYMENT_SEQ created.");
+            }
+            if (!tableExists(conn, "NBP_DISCOUNT")) {
+                stmt.executeUpdate(createDiscount);
+                System.out.println("Table NBP_DISCOUNT created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
+                stmt.executeUpdate(createDiscountSeq);
+                System.out.println("Sequence NBP_DISCOUNT_SEQ created.");
             }
 
         } catch (SQLException e) {
