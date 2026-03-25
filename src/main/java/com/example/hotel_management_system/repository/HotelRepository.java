@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.Hotel;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.*;
@@ -48,6 +49,9 @@ public class HotelRepository {
             ps.setString(5, hotel.getEmail());
             ps.setLong(6, hotel.getAddressId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_HOTEL");
         }
     }
 
@@ -83,6 +87,9 @@ public class HotelRepository {
             ps.setLong(5, hotel.getAddressId());
             ps.setLong(6, hotel.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_HOTEL");
         }
     }
 
@@ -90,6 +97,9 @@ public class HotelRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_HOTEL");
         }
     }
 

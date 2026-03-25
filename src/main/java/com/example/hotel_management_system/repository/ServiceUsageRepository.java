@@ -1,8 +1,10 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.ServiceUsage;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
 
 import java.sql.Date;
 import java.util.List;
@@ -53,6 +55,9 @@ public class ServiceUsageRepository {
                 Date.valueOf(serviceUsage.getUsageDate()),
                 serviceUsage.getTotalPrice()
         );
+
+        //Logovanje akcije
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "POST", "NBP_SERVICE_USAGE");
     }
 
     public void update(Long id, ServiceUsage serviceUsage) {
@@ -66,10 +71,16 @@ public class ServiceUsageRepository {
                 serviceUsage.getTotalPrice(),
                 id
         );
+
+        //Logovanje akcije
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "PUT", "NBP_SERVICE_USAGE");
     }
 
     public void delete(Long id) {
         String sql = "DELETE FROM NBP_SERVICE_USAGE WHERE ID = ?";
         jdbcTemplate.update(sql, id);
+
+        //Logovanje akcije
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "DELETE", "NBP_SERVICE_USAGE");
     }
 }

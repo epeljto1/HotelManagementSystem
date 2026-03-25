@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.ExtraService;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.*;
@@ -47,6 +48,9 @@ public class ExtraServiceRepository {
             ps.setDouble(4, extraService.getUnitPrice());
             ps.setString(5, extraService.getAvailable());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_SERVICE");
         }
     }
 
@@ -82,6 +86,9 @@ public class ExtraServiceRepository {
             ps.setString(4, extraService.getAvailable());
             ps.setLong(5, extraService.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_SERVICE");
         }
     }
 
@@ -89,6 +96,9 @@ public class ExtraServiceRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_SERVICE");
         }
     }
 
