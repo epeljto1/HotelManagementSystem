@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.RoomType;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.*;
@@ -47,6 +48,9 @@ public class RoomTypeRepository {
             ps.setInt(4, roomType.getCapacity());
             ps.setDouble(5, roomType.getPricePerNight());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_ROOM_TYPE");
         }
     }
 
@@ -82,6 +86,9 @@ public class RoomTypeRepository {
             ps.setDouble(4, roomType.getPricePerNight());
             ps.setLong(5, roomType.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_ROOM_TYPE");
         }
     }
 
@@ -89,6 +96,9 @@ public class RoomTypeRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_ROOM_TYPE");
         }
     }
 

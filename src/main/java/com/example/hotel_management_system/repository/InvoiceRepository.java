@@ -3,6 +3,7 @@ package com.example.hotel_management_system.repository;
 import com.example.hotel_management_system.model.Invoice;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import com.example.hotel_management_system.util.DatabaseLogger;
 
 import java.sql.Date;
 import java.util.List;
@@ -50,6 +51,9 @@ public class InvoiceRepository {
                 invoice.getStatus(),
                 invoice.getStayId()
         );
+
+        // Logovanje akcije
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "POST", "NBP_INVOICE");
     }
 
     public void update(Long id, Invoice invoice) {
@@ -62,10 +66,15 @@ public class InvoiceRepository {
                 invoice.getStayId(),
                 id
         );
+
+        //Logovanje akcije
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "PUT", "NBP_INVOICE");
     }
 
     public void delete(Long id) {
         String sql = "DELETE FROM NBP_INVOICE WHERE ID = ?";
         jdbcTemplate.update(sql, id);
+
+        DatabaseLogger.logWithJdbcTemplate(jdbcTemplate, "DELETE", "NBP_INVOICE");
     }
 }

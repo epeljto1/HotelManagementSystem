@@ -2,6 +2,7 @@ package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.Guest;
 import com.example.hotel_management_system.model.Hotel;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
@@ -53,6 +54,9 @@ public class GuestRepository {
             ps.setString(7, guest.getDocumentNumber());
             ps.setLong(8, guest.getAddressId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_GUEST");
         }
     }
 
@@ -91,6 +95,9 @@ public class GuestRepository {
             ps.setLong(7, guest.getAddressId());
             ps.setLong(8, guest.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_GUEST");
         }
     }
 
@@ -98,6 +105,9 @@ public class GuestRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_GUEST");
         }
     }
 

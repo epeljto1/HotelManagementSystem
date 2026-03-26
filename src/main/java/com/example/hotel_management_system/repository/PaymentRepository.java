@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.Payment;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.*;
@@ -35,6 +36,9 @@ public class PaymentRepository {
             ps.setString(3, payment.getPaymentMethod());
             ps.setLong(4, payment.getInvoiceId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_PAYMENT");
         }
     }
 
@@ -69,6 +73,9 @@ public class PaymentRepository {
             ps.setLong(4, payment.getInvoiceId());
             ps.setLong(5, payment.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_PAYMENT");
         }
     }
 
@@ -76,6 +83,9 @@ public class PaymentRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_PAYMENT");
         }
     }
 

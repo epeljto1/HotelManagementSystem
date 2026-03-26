@@ -2,6 +2,7 @@ package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.Discount;
 import org.springframework.stereotype.Repository;
+import com.example.hotel_management_system.util.DatabaseLogger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -36,6 +37,9 @@ public class DiscountRepository {
             ps.setDate(4, Date.valueOf(discount.getEndDate()));
             ps.setString(5, discount.getDescription());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_DISCOUNT");
         }
     }
 
@@ -71,6 +75,9 @@ public class DiscountRepository {
             ps.setString(5, discount.getDescription());
             ps.setLong(6, discount.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_DISCOUNT");
         }
     }
 
@@ -78,6 +85,9 @@ public class DiscountRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_DISCOUNT");
         }
     }
 
