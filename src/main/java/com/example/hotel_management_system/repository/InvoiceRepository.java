@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.Invoice;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
@@ -78,6 +79,9 @@ public class InvoiceRepository {
             ps.setString(4, invoice.getStatus());
             ps.setLong(5, invoice.getStayId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_INVOICE");
         }
     }
 
@@ -89,6 +93,9 @@ public class InvoiceRepository {
             ps.setLong(4, invoice.getStayId());
             ps.setLong(5, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_INVOICE");
         }
     }
 
@@ -96,6 +103,9 @@ public class InvoiceRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_INVOICE");
         }
     }
 

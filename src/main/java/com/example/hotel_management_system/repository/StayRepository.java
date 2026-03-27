@@ -103,10 +103,13 @@ public class StayRepository {
     }
 
     private Stay mapResultSetToStay(ResultSet rs) throws SQLException {
+        Timestamp checkInTs = rs.getTimestamp("CHECK_IN_TIME");
+        Timestamp checkOutTs = rs.getTimestamp("CHECK_OUT_TIME");
+
         return new Stay(
                 rs.getLong("ID"),
-                rs.getTimestamp("CHECK_IN_TIME").toLocalDateTime(),
-                rs.getTimestamp("CHECK_OUT_TIME").toLocalDateTime(),
+                checkInTs != null ? checkInTs.toLocalDateTime() : null,
+                checkOutTs != null ? checkOutTs.toLocalDateTime() : null,
                 rs.getLong("RESERVATION_ID"),
                 rs.getDouble("ACTUAL_TOTAL_PRICE")
         );
