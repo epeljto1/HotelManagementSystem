@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.repository;
 
 import com.example.hotel_management_system.model.ServiceUsage;
+import com.example.hotel_management_system.util.DatabaseLogger;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Connection;
@@ -79,6 +80,9 @@ public class ServiceUsageRepository {
             ps.setDate(5, Date.valueOf(serviceUsage.getUsageDate()));
             ps.setBigDecimal(6, serviceUsage.getTotalPrice());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_SERVICE_USAGE");
         }
     }
 
@@ -91,6 +95,9 @@ public class ServiceUsageRepository {
             ps.setBigDecimal(5, serviceUsage.getTotalPrice());
             ps.setLong(6, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_SERVICE_USAGE");
         }
     }
 
@@ -98,6 +105,9 @@ public class ServiceUsageRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_SERVICE_USAGE");
         }
     }
 
