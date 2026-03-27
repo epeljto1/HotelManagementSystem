@@ -81,6 +81,7 @@ public class DatabaseInitializer {
                 INVOICE_ID NUMBER
             )
         """;
+
         String createRoomType = """
            CREATE TABLE NBP_ROOM_TYPE (
              ID NUMBER PRIMARY KEY,
@@ -90,8 +91,6 @@ public class DatabaseInitializer {
              PRICE_PER_NIGHT NUMBER
            )
         """;
-
-        String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
 
         String createDiscount = """
             CREATE TABLE NBP_DISCOUNT (
@@ -104,26 +103,95 @@ public class DatabaseInitializer {
             )
         """;
 
-        String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
-
         String createRoom = """
-                    CREATE TABLE NBP_ROOM (
-                        ID NUMBER PRIMARY KEY,
-                        ROOM_NUMBER VARCHAR2(20),
-                        FLOOR_NUMBER NUMBER,
-                        STATUS VARCHAR2(50) DEFAULT 'AVAILABLE',
-                        HOTEL_ID NUMBER NOT NULL,
-                        ROOM_TYPE_ID NUMBER NOT NULL,
-                        CONSTRAINT CHK_ROOM_STATUS
-                            CHECK (STATUS IN ('AVAILABLE', 'OCCUPIED', 'RESERVED', 'OUT_OF_SERVICE')),
-                        CONSTRAINT FK_ROOM_HOTEL
-                            FOREIGN KEY (HOTEL_ID)
-                            REFERENCES NBP_HOTEL(ID),
-                        CONSTRAINT FK_ROOM_ROOM_TYPE
-                            FOREIGN KEY (ROOM_TYPE_ID)
-                            REFERENCES NBP_ROOM_TYPE(ID)
-                    )
-                """;
+            CREATE TABLE NBP_ROOM (
+                ID NUMBER PRIMARY KEY,
+                ROOM_NUMBER VARCHAR2(20),
+                FLOOR_NUMBER NUMBER,
+                STATUS VARCHAR2(50) DEFAULT 'AVAILABLE',
+                HOTEL_ID NUMBER NOT NULL,
+                ROOM_TYPE_ID NUMBER NOT NULL,
+                CONSTRAINT CHK_ROOM_STATUS
+                    CHECK (STATUS IN ('AVAILABLE', 'OCCUPIED', 'RESERVED', 'OUT_OF_SERVICE')),
+                CONSTRAINT FK_ROOM_HOTEL
+                    FOREIGN KEY (HOTEL_ID)
+                    REFERENCES NBP_HOTEL(ID),
+                CONSTRAINT FK_ROOM_ROOM_TYPE
+                    FOREIGN KEY (ROOM_TYPE_ID)
+                    REFERENCES NBP_ROOM_TYPE(ID)
+            )
+        """;
+
+        String createLog = """
+            CREATE TABLE NBP_LOG (
+                ID NUMBER PRIMARY KEY,
+                ACTION_NAME VARCHAR2(255) NOT NULL,
+                TABLE_NAME VARCHAR2(255) NOT NULL,
+                DATE_TIME TIMESTAMP NOT NULL,
+                DB_USER VARCHAR2(255)
+            )
+        """;
+
+        String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
+        String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
+        String createLogSeq = "CREATE SEQUENCE NBP_LOG_SEQ START WITH 1 INCREMENT BY 1";
+
+        String createGuestLogTrigger = """
+            CREATE OR REPLACE TRIGGER TRG_NBP_GUEST_LOG
+            AFTER INSERT OR UPDATE OR DELETE ON NBP_GUEST
+            FOR EACH ROW
+            BEGIN
+                IF INSERTING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'POST', 'NBP_GUEST', SYSTIMESTAMP, USER);
+                ELSIF UPDATING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'PUT', 'NBP_GUEST', SYSTIMESTAMP, USER);
+                ELSIF DELETING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'DELETE', 'NBP_GUEST', SYSTIMESTAMP, USER);
+                END IF;
+            END;
+        """;
+
+        String createRoomTypeLogTrigger = """
+            CREATE OR REPLACE TRIGGER TRG_NBP_ROOM_TYPE_LOG
+            AFTER INSERT OR UPDATE OR DELETE ON NBP_ROOM_TYPE
+            FOR EACH ROW
+            BEGIN
+                IF INSERTING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'POST', 'NBP_ROOM_TYPE', SYSTIMESTAMP, USER);
+                ELSIF UPDATING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'PUT', 'NBP_ROOM_TYPE', SYSTIMESTAMP, USER);
+                ELSIF DELETING THEN
+                    INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                    VALUES (NBP_LOG_SEQ.NEXTVAL, 'DELETE', 'NBP_ROOM_TYPE', SYSTIMESTAMP, USER);
+                END IF;
+            END;
+        """;
+
+
+
+        String createHotelLogTrigger = """
+           CREATE OR REPLACE TRIGGER TRG_NBP_HOTEL_LOG
+           AFTER INSERT OR UPDATE OR DELETE ON NBP_HOTEL
+           FOR EACH ROW
+           BEGIN
+              IF INSERTING THEN
+                INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                VALUES (NBP_LOG_SEQ.NEXTVAL, 'POST', 'NBP_HOTEL', SYSTIMESTAMP, USER);
+              ELSIF UPDATING THEN
+                 INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                 VALUES (NBP_LOG_SEQ.NEXTVAL, 'PUT', 'NBP_HOTEL', SYSTIMESTAMP, USER);
+              ELSIF DELETING THEN
+                 INSERT INTO NBP_LOG (ID, ACTION_NAME, TABLE_NAME, DATE_TIME, DB_USER)
+                 VALUES (NBP_LOG_SEQ.NEXTVAL, 'DELETE', 'NBP_HOTEL', SYSTIMESTAMP, USER);
+              END IF;
+           END;
+        """;
+
 
         String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 3 INCREMENT BY 1";
 
@@ -148,6 +216,7 @@ public class DatabaseInitializer {
                 stmt.executeUpdate(createPaymentSeq);
                 System.out.println("Sequence NBP_PAYMENT_SEQ created.");
             }
+
             if (!tableExists(conn, "NBP_DISCOUNT")) {
                 stmt.executeUpdate(createDiscount);
                 System.out.println("Table NBP_DISCOUNT created.");
@@ -163,10 +232,25 @@ public class DatabaseInitializer {
                 System.out.println("Table NBP_ROOM created.");
             }
 
-            if (!sequenceExists(conn, "NBP_ROOM_SEQ")) {
-                stmt.executeUpdate(createRoomSeq);
-                System.out.println("Sequence NBP_ROOM_SEQ created.");
+            if (!tableExists(conn, "NBP_LOG")) {
+                stmt.executeUpdate(createLog);
+                System.out.println("Table NBP_LOG created.");
             }
+
+            if (!sequenceExists(conn, "NBP_LOG_SEQ")) {
+                stmt.executeUpdate(createLogSeq);
+                System.out.println("Sequence NBP_LOG_SEQ created.");
+            }
+
+            stmt.execute(createGuestLogTrigger);
+            System.out.println("Trigger TRG_NBP_GUEST_LOG created or replaced.");
+
+            stmt.execute(createRoomTypeLogTrigger);
+            System.out.println("Trigger TRG_NBP_ROOM_TYPE_LOG created or replaced.");
+
+
+            stmt.execute(createHotelLogTrigger);
+            System.out.println("Trigger TRG_NBP_HOTEL_LOG created or replaced.");
 
         } catch (SQLException e) {
             e.printStackTrace();
