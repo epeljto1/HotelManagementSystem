@@ -22,10 +22,12 @@ public class RoomService {
 
     public RoomDTO createRoom(RoomDTO roomDTO) throws SQLException {
         Room room = mapDTOToEntity(roomDTO);
+
         try (Connection connection = DbConfig.getConnection()) {
             roomRepository.save(room, connection);
+
+            return mapEntityToDTO(room);
         }
-        return roomDTO;
     }
 
     public RoomDTO getRoomById(Long id) throws SQLException {

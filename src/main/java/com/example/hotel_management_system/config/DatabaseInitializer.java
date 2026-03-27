@@ -193,6 +193,9 @@ public class DatabaseInitializer {
         """;
 
 
+        String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 3 INCREMENT BY 1";
+
+
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
