@@ -34,7 +34,11 @@ public class PaymentRepository {
             ps.setTimestamp(1, Timestamp.valueOf(payment.getPaymentDate()));
             ps.setDouble(2, payment.getAmount());
             ps.setString(3, payment.getPaymentMethod());
-            ps.setLong(4, payment.getInvoiceId());
+            if (payment.getInvoiceId() != null) {
+                ps.setLong(4, payment.getInvoiceId());
+            } else {
+                ps.setNull(4, java.sql.Types.NUMERIC);
+            }
             ps.executeUpdate();
 
             //Logovanje akcije
@@ -70,7 +74,11 @@ public class PaymentRepository {
             ps.setTimestamp(1, Timestamp.valueOf(payment.getPaymentDate()));
             ps.setDouble(2, payment.getAmount());
             ps.setString(3, payment.getPaymentMethod());
-            ps.setLong(4, payment.getInvoiceId());
+            if (payment.getInvoiceId() != null) {
+                ps.setLong(4, payment.getInvoiceId());
+            } else {
+                ps.setNull(4, java.sql.Types.NUMERIC);
+            }
             ps.setLong(5, payment.getId());
             ps.executeUpdate();
 
@@ -90,12 +98,17 @@ public class PaymentRepository {
     }
 
     private Payment mapResultSetToPayment(ResultSet rs) throws SQLException {
+        Long invoiceId = rs.getLong("INVOICE_ID");
+        if (rs.wasNull()) {
+            invoiceId = null;
+        }
+
         return new Payment(
                 rs.getLong("ID"),
                 rs.getTimestamp("PAYMENT_DATE").toLocalDateTime(),
                 rs.getDouble("AMOUNT"),
                 rs.getString("PAYMENT_METHOD"),
-                rs.getLong("INVOICE_ID")
+                invoiceId
         );
     }
 }
