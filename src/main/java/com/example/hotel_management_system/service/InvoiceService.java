@@ -1,10 +1,13 @@
 package com.example.hotel_management_system.service;
 
+import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.InvoiceDTO;
 import com.example.hotel_management_system.model.Invoice;
 import com.example.hotel_management_system.repository.InvoiceRepository;
 import org.springframework.stereotype.Service;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,28 +21,51 @@ public class InvoiceService {
     }
 
     public List<InvoiceDTO> findAll() {
-        return repository.findAll()
-                .stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        try (Connection connection = DbConfig.getConnection()) {
+            return repository.findAll(connection)
+                    .stream()
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while fetching invoices.", e);
+        }
     }
 
     public InvoiceDTO findById(Long id) {
-        return toDTO(repository.findById(id));
+        try (Connection connection = DbConfig.getConnection()) {
+            Invoice invoice = repository.findById(id, connection);
+            return invoice != null ? toDTO(invoice) : null;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while fetching invoice by id.", e);
+        }
     }
 
     public void save(InvoiceDTO dto) {
         validateStatus(dto.getStatus());
-        repository.save(toModel(dto));
+
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.save(toModel(dto), connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while saving invoice.", e);
+        }
     }
 
     public void update(Long id, InvoiceDTO dto) {
         validateStatus(dto.getStatus());
-        repository.update(id, toModel(dto));
+
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.update(id, toModel(dto), connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while updating invoice.", e);
+        }
     }
 
     public void delete(Long id) {
-        repository.delete(id);
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.delete(id, connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while deleting invoice.", e);
+        }
     }
 
     private void validateStatus(String status) {

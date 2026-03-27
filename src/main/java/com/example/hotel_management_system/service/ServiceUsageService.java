@@ -1,10 +1,13 @@
 package com.example.hotel_management_system.service;
 
+import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.ServiceUsageDTO;
 import com.example.hotel_management_system.model.ServiceUsage;
 import com.example.hotel_management_system.repository.ServiceUsageRepository;
 import org.springframework.stereotype.Service;
 
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,26 +21,47 @@ public class ServiceUsageService {
     }
 
     public List<ServiceUsageDTO> findAll() {
-        return repository.findAll()
-                .stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
+        try (Connection connection = DbConfig.getConnection()) {
+            return repository.findAll(connection)
+                    .stream()
+                    .map(this::toDTO)
+                    .collect(Collectors.toList());
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while fetching service usages.", e);
+        }
     }
 
     public ServiceUsageDTO findById(Long id) {
-        return toDTO(repository.findById(id));
+        try (Connection connection = DbConfig.getConnection()) {
+            ServiceUsage serviceUsage = repository.findById(id, connection);
+            return serviceUsage != null ? toDTO(serviceUsage) : null;
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while fetching service usage by id.", e);
+        }
     }
 
     public void save(ServiceUsageDTO dto) {
-        repository.save(toModel(dto));
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.save(toModel(dto), connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while saving service usage.", e);
+        }
     }
 
     public void update(Long id, ServiceUsageDTO dto) {
-        repository.update(id, toModel(dto));
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.update(id, toModel(dto), connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while updating service usage.", e);
+        }
     }
 
     public void delete(Long id) {
-        repository.delete(id);
+        try (Connection connection = DbConfig.getConnection()) {
+            repository.delete(id, connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while deleting service usage.", e);
+        }
     }
 
     private ServiceUsageDTO toDTO(ServiceUsage serviceUsage) {

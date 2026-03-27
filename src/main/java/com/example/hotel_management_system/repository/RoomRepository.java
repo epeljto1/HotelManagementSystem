@@ -4,6 +4,7 @@ package com.example.hotel_management_system.repository;
 import com.example.hotel_management_system.enums.RoomStatus;
 import com.example.hotel_management_system.model.Room;
 import org.springframework.stereotype.Repository;
+import com.example.hotel_management_system.util.DatabaseLogger;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -91,6 +92,9 @@ public class RoomRepository {
             ps.setLong(5, room.getRoomTypeId());
             ps.setLong(6, room.getId());
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_ROOM");
         }
     }
 
@@ -98,6 +102,9 @@ public class RoomRepository {
         try (PreparedStatement ps = connection.prepareStatement(DELETE_QUERY)) {
             ps.setLong(1, id);
             ps.executeUpdate();
+
+            //Logovanje akcije
+            DatabaseLogger.log(connection, "DELETE", "NBP_ROOM");
         }
     }
 
