@@ -125,6 +125,9 @@ public class DatabaseInitializer {
                     )
                 """;
 
+        String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 3 INCREMENT BY 1";
+
+
         try {
             Connection conn = DbConfig.getConnection();
             Statement stmt = conn.createStatement();
@@ -158,6 +161,11 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_ROOM")) {
                 stmt.executeUpdate(createRoom);
                 System.out.println("Table NBP_ROOM created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_ROOM_SEQ")) {
+                stmt.executeUpdate(createRoomSeq);
+                System.out.println("Sequence NBP_ROOM_SEQ created.");
             }
 
         } catch (SQLException e) {

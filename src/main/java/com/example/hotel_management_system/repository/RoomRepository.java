@@ -14,8 +14,8 @@ import java.util.Optional;
 public class RoomRepository {
     private final String INSERT_QUERY = """
         INSERT INTO NBP_ROOM (ID, ROOM_NUMBER, FLOOR_NUMBER, STATUS, HOTEL_ID, ROOM_TYPE_ID)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """;
+        VALUES (NBP_ROOM_SEQ.NEXTVAL, ?, ?, ?, ?, ?)
+    """;
     private final String SELECT_ALL_QUERY = "SELECT * FROM NBP_ROOM ORDER BY ID";
 
     private final String SELECT_BY_ID_QUERY = "SELECT * FROM NBP_ROOM WHERE ID = ?";
@@ -29,21 +29,29 @@ public class RoomRepository {
     private final String DELETE_QUERY = "DELETE FROM NBP_ROOM WHERE ID = ?";
 
     public void save(Room room, Connection connection) throws SQLException {
-        try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY)) {
-            ps.setLong(1, room.getId());
-            ps.setString(2, room.getRoomNumber());
+        try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY, new String[]{"ID"})) {
+            ps.setString(1, room.getRoomNumber());
 
             if (room.getFloorNumber() != null) {
-                ps.setInt(3, room.getFloorNumber());
+                ps.setInt(2, room.getFloorNumber());
             } else {
-                ps.setNull(3, Types.INTEGER);
+                ps.setNull(2, Types.INTEGER);
             }
 
-            ps.setString(4, room.getStatus().name());
-            ps.setLong(5, room.getHotelId());
-            ps.setLong(6, room.getRoomTypeId());
+            ps.setString(3, room.getStatus().name());
+            ps.setLong(4, room.getHotelId());
+            ps.setLong(5, room.getRoomTypeId());
 
             ps.executeUpdate();
+
+            try (ResultSet generatedKeys = ps.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    room.setId(generatedKeys.getLong(1));
+                }
+            }
+
+            // Logovanje akcije
+            DatabaseLogger.log(connection, "POST", "NBP_ROOM");
         }
     }
 
