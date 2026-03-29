@@ -113,10 +113,10 @@ public class DatabaseInitializer {
                 PASSWORD_HASH VARCHAR2(255),
                 ROLE VARCHAR2(50),
                 CREATED_DATE DATE,
-                CONSTRAINT FK_NBP_USER_USER
+                CONSTRAINT FK_NBPT7_USER_USER
                     FOREIGN KEY (USER_ID)
                     REFERENCES NBP.NBP_USER(ID),
-                CONSTRAINT FK_NBP_USER_ROLE
+                CONSTRAINT FK_NBPT7_USER_ROLE
                     FOREIGN KEY (ROLE_ID)
                     REFERENCES NBP.NBP_ROLE(ID)
             )
