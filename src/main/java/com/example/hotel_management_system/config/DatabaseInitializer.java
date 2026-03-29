@@ -141,6 +141,36 @@ public class DatabaseInitializer {
             )
         """;
 
+        String createReservation = """
+            CREATE TABLE NBP_RESERVATION (
+                ID NUMBER PRIMARY KEY,
+                RESERVATION_DATE TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CHECK_IN_DATE TIMESTAMP NOT NULL,
+                CHECK_OUT_DATE TIMESTAMP NOT NULL,
+                NUMBER_OF_GUESTS NUMBER NOT NULL,
+                STATUS VARCHAR2(50) DEFAULT 'PENDING',
+                TOTAL_PRICE NUMBER(10, 2),
+                GUEST_ID NUMBER NOT NULL,
+                ROOM_ID NUMBER NOT NULL,
+                CREATED_BY NUMBER NOT NULL,
+                
+                CONSTRAINT CHK_RESERVATION_STATUS
+                    CHECK (STATUS IN ('PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED')),
+                    
+                CONSTRAINT FK_RESERVATION_GUEST
+                    FOREIGN KEY (GUEST_ID)
+                    REFERENCES NBP_GUEST(ID),
+                    
+                CONSTRAINT FK_RESERVATION_ROOM
+                    FOREIGN KEY (ROOM_ID)
+                    REFERENCES NBP_ROOM(ID),
+                    
+                CONSTRAINT FK_RESERVATION_USER
+                    FOREIGN KEY (CREATED_BY)
+                    REFERENCES NBP_USER(ID)
+            )
+        """;
+
         String createLog = """
             CREATE TABLE NBP_LOG (
                 ID NUMBER PRIMARY KEY,
@@ -154,6 +184,8 @@ public class DatabaseInitializer {
         String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
         String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
         String createLogSeq = "CREATE SEQUENCE NBP_LOG_SEQ START WITH 1 INCREMENT BY 1";
+        String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 1 INCREMENT BY 1";
+        String createReservationSeq = "CREATE SEQUENCE NBP_RESERVATION_SEQ START WITH 1 INCREMENT BY 1";
 
         String createGuestLogTrigger = """
             CREATE OR REPLACE TRIGGER TRG_NBP_GUEST_LOG
@@ -212,8 +244,6 @@ public class DatabaseInitializer {
         """;
 
 
-        String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 3 INCREMENT BY 1";
-
 
         try {
             Connection conn = DbConfig.getConnection();
@@ -254,6 +284,21 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_ROOM")) {
                 stmt.executeUpdate(createRoom);
                 System.out.println("Table NBP_ROOM created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_ROOM_SEQ")) {
+                stmt.executeUpdate(createRoomSeq);
+                System.out.println("Sequence NBP_ROOM_SEQ created.");
+            }
+
+            if (!tableExists(conn, "NBP_RESERVATION")) {
+                stmt.executeUpdate(createReservation);
+                System.out.println("Table NBP_RESERVATION created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_RESERVATION_SEQ")) {
+                stmt.executeUpdate(createReservationSeq);
+                System.out.println("Sequence NBP_RESERVATION_SEQ created.");
             }
 
             if (!tableExists(conn, "NBP_LOG")) {
