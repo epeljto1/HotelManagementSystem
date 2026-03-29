@@ -103,6 +103,18 @@ public class DatabaseInitializer {
             )
         """;
 
+        String createUser = """
+            CREATE TABLE NBP_USER (
+                ID NUMBER PRIMARY KEY,
+                USER_ID NUMBER NOT NULL,
+                USERNAME VARCHAR2(255),
+                EMAIL VARCHAR2(255),
+                PASSWORD_HASH VARCHAR2(255),
+                ROLE VARCHAR2(50),
+                CREATED_DATE DATE
+            )
+        """;
+
         String createRoom = """
             CREATE TABLE NBP_ROOM (
                 ID NUMBER PRIMARY KEY,
@@ -220,6 +232,11 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_DISCOUNT")) {
                 stmt.executeUpdate(createDiscount);
                 System.out.println("Table NBP_DISCOUNT created.");
+            }
+
+            if (!tableExists(conn, "NBP_USER")) {
+                stmt.executeUpdate(createUser);
+                System.out.println("Table NBP_USER created.");
             }
 
             if (!sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
