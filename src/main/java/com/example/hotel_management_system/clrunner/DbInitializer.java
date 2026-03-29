@@ -12,8 +12,7 @@ public class DbInitializer implements CommandLineRunner {
     public void run(String... args) throws Exception {
         try{
             DatabaseInitializer.initialize();
-            //Pozvati seeder kad dobijemo privilegije za insert
-            //DataSeeder.seedData();
+            DataSeeder.seedData();
         } catch (Exception e) {
             e.printStackTrace();
         }
