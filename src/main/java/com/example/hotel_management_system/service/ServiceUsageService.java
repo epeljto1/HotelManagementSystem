@@ -2,22 +2,34 @@ package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.ServiceUsageDTO;
+import com.example.hotel_management_system.model.ExtraService;
 import com.example.hotel_management_system.model.ServiceUsage;
+import com.example.hotel_management_system.model.Stay;
+import com.example.hotel_management_system.repository.ExtraServiceRepository;
 import com.example.hotel_management_system.repository.ServiceUsageRepository;
+import com.example.hotel_management_system.repository.StayRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
 public class ServiceUsageService {
 
     private final ServiceUsageRepository repository;
+    private final ExtraServiceRepository extraServiceRepository;
+    private final StayRepository stayRepository;
 
-    public ServiceUsageService(ServiceUsageRepository repository) {
+    public ServiceUsageService(ServiceUsageRepository repository,
+                               ExtraServiceRepository extraServiceRepository,
+                               StayRepository stayRepository) {
         this.repository = repository;
+        this.extraServiceRepository = extraServiceRepository;
+        this.stayRepository = stayRepository;
     }
 
     public List<ServiceUsageDTO> findAll() {
@@ -42,7 +54,38 @@ public class ServiceUsageService {
 
     public void save(ServiceUsageDTO dto) {
         try (Connection connection = DbConfig.getConnection()) {
-            repository.save(toModel(dto), connection);
+
+            Optional<ExtraService> extraServiceOpt = extraServiceRepository.findById(dto.getServiceId(), connection);
+            if (extraServiceOpt.isEmpty()) {
+                throw new RuntimeException("Service not found with id: " + dto.getServiceId());
+            }
+
+            ExtraService extraService = extraServiceOpt.get();
+
+            BigDecimal totalPrice = BigDecimal.valueOf(extraService.getUnitPrice())
+                    .multiply(BigDecimal.valueOf(dto.getQuantity()));
+
+            ServiceUsage serviceUsage = new ServiceUsage(
+                    dto.getId(),
+                    dto.getStayId(),
+                    dto.getServiceId(),
+                    dto.getQuantity(),
+                    dto.getUsageDate(),
+                    totalPrice
+            );
+
+            repository.save(serviceUsage, connection);
+
+            Optional<Stay> stayOpt = stayRepository.findById(dto.getStayId(), connection);
+            if (stayOpt.isPresent()) {
+                Stay stay = stayOpt.get();
+
+                double currentTotal = stay.getActualTotalPrice() != null ? stay.getActualTotalPrice() : 0.0;
+                stay.setActualTotalPrice(currentTotal + totalPrice.doubleValue());
+
+                stayRepository.update(stay, connection);
+            }
+
         } catch (SQLException e) {
             throw new RuntimeException("Error while saving service usage.", e);
         }

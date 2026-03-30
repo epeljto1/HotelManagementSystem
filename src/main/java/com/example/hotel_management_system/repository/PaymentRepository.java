@@ -111,4 +111,21 @@ public class PaymentRepository {
                 invoiceId
         );
     }
+
+    public double getTotalPaidForInvoice(Long invoiceId, Connection connection) throws SQLException {
+        String query = "SELECT SUM(AMOUNT) FROM NBP_PAYMENT WHERE INVOICE_ID = ?";
+
+        try (PreparedStatement ps = connection.prepareStatement(query)) {
+            ps.setLong(1, invoiceId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    double total = rs.getDouble(1);
+                    return rs.wasNull() ? 0.0 : total;
+                }
+            }
+        }
+
+        return 0.0;
+    }
 }

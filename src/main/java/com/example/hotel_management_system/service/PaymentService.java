@@ -2,29 +2,67 @@ package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.PaymentDTO;
+import com.example.hotel_management_system.model.Invoice;
 import com.example.hotel_management_system.model.Payment;
+import com.example.hotel_management_system.repository.InvoiceRepository;
 import com.example.hotel_management_system.repository.PaymentRepository;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+
 @Service
 public class PaymentService {
     private final PaymentRepository paymentRepository;
+    private final InvoiceRepository invoiceRepository;
 
-    public PaymentService(PaymentRepository paymentRepository) {
+    public PaymentService(PaymentRepository paymentRepository, InvoiceRepository invoiceRepository) {
         this.paymentRepository = paymentRepository;
+        this.invoiceRepository = invoiceRepository;
     }
 
     public PaymentDTO createPayment(PaymentDTO paymentDTO) throws SQLException {
         Payment payment = mapDTOToEntity(paymentDTO);
+
         try (Connection connection = DbConfig.getConnection()) {
+
+            // 1. Snimi payment
             paymentRepository.save(payment, connection);
+
+            // 2. Uzmi invoice
+            Invoice invoice = invoiceRepository.findById(payment.getInvoiceId(), connection);
+
+            if (invoice != null) {
+
+                // 3. Ukupno uplaćeno
+                double totalPaid = paymentRepository.getTotalPaidForInvoice(payment.getInvoiceId(), connection);
+
+                // 4. Ukupan iznos računa
+                double totalAmount = invoice.getTotalAmount().doubleValue();
+
+                // 5. Odredi status
+                String status;
+                if (totalPaid >= totalAmount) {
+                    status = "Paid";
+                } else if (totalPaid > 0) {
+                    status = "Partially paid";
+                } else {
+                    status = "Unpaid";
+                }
+
+                // 6. Postavi novi status
+                invoice.setStatus(status);
+
+                // 7. Update invoice
+                invoiceRepository.update(invoice.getId(), invoice, connection);
+            }
         }
+
         return paymentDTO;
     }
 
