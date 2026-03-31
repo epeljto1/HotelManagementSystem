@@ -186,6 +186,7 @@ public class DatabaseInitializer {
         String createLogSeq = "CREATE SEQUENCE NBP_LOG_SEQ START WITH 1 INCREMENT BY 1";
         String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 1 INCREMENT BY 1";
         String createReservationSeq = "CREATE SEQUENCE NBP_RESERVATION_SEQ START WITH 1 INCREMENT BY 1";
+        String createUserSeq = "CREATE SEQUENCE NBP_USER_SEQ START WITH 7 INCREMENT BY 1";
 
         String createGuestLogTrigger = """
             CREATE OR REPLACE TRIGGER TRG_NBP_GUEST_LOG
@@ -274,6 +275,11 @@ public class DatabaseInitializer {
             if (!tableExists(conn, "NBP_USER")) {
                 stmt.executeUpdate(createUser);
                 System.out.println("Table NBP_USER created.");
+            }
+
+            if (!sequenceExists(conn, "NBP_USER_SEQ")) {
+                stmt.executeUpdate(createUserSeq);
+                System.out.println("Sequence NBP_USER_SEQ created.");
             }
 
             if (!sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
