@@ -63,14 +63,20 @@ public class DatabaseInitializer {
         """;
 
         String createInvoice = """
-            CREATE TABLE NBP_INVOICE (
-                ID NUMBER PRIMARY KEY,
-                ISSUE_DATE DATE,
-                TOTAL_AMOUNT NUMBER,
-                STATUS VARCHAR2(50),
-                STAY_ID NUMBER
-            )
-        """;
+        CREATE TABLE NBP_INVOICE (
+            ID NUMBER PRIMARY KEY,
+            ISSUE_DATE DATE,
+            TOTAL_AMOUNT NUMBER,
+            STATUS VARCHAR2(50),
+            STAY_ID NUMBER,
+            DISCOUNT_ID NUMBER,
+            DISCOUNT_AMOUNT NUMBER(10,2),
+            FINAL_AMOUNT NUMBER(10,2),
+            CONSTRAINT FK_INVOICE_DISCOUNT
+                FOREIGN KEY (DISCOUNT_ID)
+                REFERENCES NBP_DISCOUNT(ID)
+        )
+    """;
 
         String createPayment = """
             CREATE TABLE NBP_PAYMENT (

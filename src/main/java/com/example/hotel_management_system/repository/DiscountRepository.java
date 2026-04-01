@@ -29,6 +29,13 @@ public class DiscountRepository {
 
     private final String DELETE_QUERY = "DELETE FROM NBP_DISCOUNT WHERE ID = ?";
 
+    private final String FIND_ACTIVE_DISCOUNT_BY_DATE_QUERY = """
+        SELECT *
+        FROM NBP_DISCOUNT
+        WHERE ? BETWEEN START_DATE AND END_DATE
+        ORDER BY PERCENTAGE DESC, ID ASC
+        FETCH FIRST 1 ROWS ONLY
+        """;
     public void save(Discount discount, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY)) {
             ps.setString(1, discount.getName());
@@ -100,5 +107,16 @@ public class DiscountRepository {
                 rs.getDate("END_DATE").toLocalDate(),
                 rs.getString("DESCRIPTION")
         );
+    }
+    public Optional<Discount> findActiveDiscountByDate(Date date, Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(FIND_ACTIVE_DISCOUNT_BY_DATE_QUERY)) {
+            ps.setDate(1, date);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToDiscount(rs));
+                }
+            }
+        }
+        return Optional.empty();
     }
 }

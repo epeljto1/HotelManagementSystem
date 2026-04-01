@@ -10,6 +10,9 @@ public class Invoice {
     private BigDecimal totalAmount;
     private String status;
     private Long stayId;
+    private Long discountId;
+    private BigDecimal discountAmount;
+    private BigDecimal finalAmount;
 
     public Invoice() {
     }
@@ -20,6 +23,18 @@ public class Invoice {
         this.totalAmount = totalAmount;
         this.status = status;
         this.stayId = stayId;
+    }
+
+    public Invoice(Long id, LocalDate issueDate, BigDecimal totalAmount, String status, Long stayId,
+                   Long discountId, BigDecimal discountAmount, BigDecimal finalAmount) {
+        this.id = id;
+        this.issueDate = issueDate;
+        this.totalAmount = totalAmount;
+        this.status = status;
+        this.stayId = stayId;
+        this.discountId = discountId;
+        this.discountAmount = discountAmount;
+        this.finalAmount = finalAmount;
     }
 
     public Long getId() {
@@ -60,5 +75,29 @@ public class Invoice {
 
     public void setStayId(Long stayId) {
         this.stayId = stayId;
+    }
+
+    public Long getDiscountId() {
+        return discountId;
+    }
+
+    public void setDiscountId(Long discountId) {
+        this.discountId = discountId;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(BigDecimal discountAmount) {
+        this.discountAmount = discountAmount;
+    }
+
+    public BigDecimal getFinalAmount() {
+        return finalAmount;
+    }
+
+    public void setFinalAmount(BigDecimal finalAmount) {
+        this.finalAmount = finalAmount;
     }
 }

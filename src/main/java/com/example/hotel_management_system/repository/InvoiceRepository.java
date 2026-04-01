@@ -16,32 +16,32 @@ import java.util.List;
 public class InvoiceRepository {
 
     private final String SELECT_ALL_QUERY = """
-            SELECT ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID
-            FROM NBP_INVOICE
-            ORDER BY ID
-            """;
+        SELECT ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID, DISCOUNT_ID, DISCOUNT_AMOUNT, FINAL_AMOUNT
+        FROM NBP_INVOICE
+        ORDER BY ID
+        """;
 
     private final String SELECT_BY_ID_QUERY = """
-            SELECT ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID
-            FROM NBP_INVOICE
-            WHERE ID = ?
-            """;
+        SELECT ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID, DISCOUNT_ID, DISCOUNT_AMOUNT, FINAL_AMOUNT
+        FROM NBP_INVOICE
+        WHERE ID = ?
+        """;
 
     private final String INSERT_QUERY = """
-            INSERT INTO NBP_INVOICE (ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID)
-            VALUES (?, ?, ?, ?, ?)
-            """;
+        INSERT INTO NBP_INVOICE (ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID, DISCOUNT_ID, DISCOUNT_AMOUNT, FINAL_AMOUNT)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """;
 
     private final String UPDATE_QUERY = """
-            UPDATE NBP_INVOICE
-            SET ISSUE_DATE = ?, TOTAL_AMOUNT = ?, STATUS = ?, STAY_ID = ?
-            WHERE ID = ?
-            """;
+        UPDATE NBP_INVOICE
+        SET ISSUE_DATE = ?, TOTAL_AMOUNT = ?, STATUS = ?, STAY_ID = ?, DISCOUNT_ID = ?, DISCOUNT_AMOUNT = ?, FINAL_AMOUNT = ?
+        WHERE ID = ?
+        """;
 
     private final String DELETE_QUERY = """
-            DELETE FROM NBP_INVOICE
-            WHERE ID = ?
-            """;
+        DELETE FROM NBP_INVOICE
+        WHERE ID = ?
+        """;
 
     public List<Invoice> findAll(Connection connection) throws SQLException {
         List<Invoice> invoices = new ArrayList<>();
@@ -78,6 +78,24 @@ public class InvoiceRepository {
             ps.setBigDecimal(3, invoice.getTotalAmount());
             ps.setString(4, invoice.getStatus());
             ps.setLong(5, invoice.getStayId());
+            if (invoice.getDiscountId() != null) {
+                ps.setLong(6, invoice.getDiscountId());
+            } else {
+                ps.setNull(6, java.sql.Types.NUMERIC);
+            }
+
+            if (invoice.getDiscountAmount() != null) {
+                ps.setBigDecimal(7, invoice.getDiscountAmount());
+            } else {
+                ps.setNull(7, java.sql.Types.NUMERIC);
+            }
+
+            if (invoice.getFinalAmount() != null) {
+                ps.setBigDecimal(8, invoice.getFinalAmount());
+            } else {
+                ps.setNull(8, java.sql.Types.NUMERIC);
+            }
+
             ps.executeUpdate();
 
             //Logovanje akcije
@@ -91,7 +109,26 @@ public class InvoiceRepository {
             ps.setBigDecimal(2, invoice.getTotalAmount());
             ps.setString(3, invoice.getStatus());
             ps.setLong(4, invoice.getStayId());
-            ps.setLong(5, id);
+
+            if (invoice.getDiscountId() != null) {
+                ps.setLong(5, invoice.getDiscountId());
+            } else {
+                ps.setNull(5, java.sql.Types.NUMERIC);
+            }
+
+            if (invoice.getDiscountAmount() != null) {
+                ps.setBigDecimal(6, invoice.getDiscountAmount());
+            } else {
+                ps.setNull(6, java.sql.Types.NUMERIC);
+            }
+
+            if (invoice.getFinalAmount() != null) {
+                ps.setBigDecimal(7, invoice.getFinalAmount());
+            } else {
+                ps.setNull(7, java.sql.Types.NUMERIC);
+            }
+
+            ps.setLong(8, id);
             ps.executeUpdate();
 
             //Logovanje akcije
@@ -115,7 +152,10 @@ public class InvoiceRepository {
                 rs.getDate("ISSUE_DATE").toLocalDate(),
                 rs.getBigDecimal("TOTAL_AMOUNT"),
                 rs.getString("STATUS"),
-                rs.getLong("STAY_ID")
+                rs.getLong("STAY_ID"),
+                rs.getObject("DISCOUNT_ID") != null ? rs.getLong("DISCOUNT_ID") : null,
+                rs.getBigDecimal("DISCOUNT_AMOUNT"),
+                rs.getBigDecimal("FINAL_AMOUNT")
         );
     }
 }
