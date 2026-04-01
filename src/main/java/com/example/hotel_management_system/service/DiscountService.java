@@ -5,7 +5,7 @@ import com.example.hotel_management_system.dto.DiscountDTO;
 import com.example.hotel_management_system.model.Discount;
 import com.example.hotel_management_system.repository.DiscountRepository;
 import org.springframework.stereotype.Service;
-
+import java.time.LocalDate;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -65,6 +65,13 @@ public class DiscountService {
         return false;
     }
 
+    public DiscountDTO getActiveDiscountForDate(LocalDate date) throws SQLException {
+        try (Connection connection = DbConfig.getConnection()) {
+            Optional<Discount> discount = discountRepository.findActiveDiscountByDate(java.sql.Date.valueOf(date), connection);
+            return discount.map(this::mapEntityToDTO).orElse(null);
+        }
+    }
+
     private DiscountDTO mapEntityToDTO(Discount discount) {
         return new DiscountDTO(
                 discount.getId(),
@@ -86,4 +93,5 @@ public class DiscountService {
                 dto.getDescription()
         );
     }
+
 }

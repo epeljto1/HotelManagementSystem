@@ -1,11 +1,15 @@
 package com.example.hotel_management_system.service;
-
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.InvoiceDTO;
 import com.example.hotel_management_system.model.Invoice;
 import com.example.hotel_management_system.repository.InvoiceRepository;
 import org.springframework.stereotype.Service;
-
+import com.example.hotel_management_system.model.Discount;
+import com.example.hotel_management_system.repository.DiscountRepository;
+import java.math.RoundingMode;
+import java.util.Optional;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
@@ -15,9 +19,11 @@ import java.util.stream.Collectors;
 public class InvoiceService {
 
     private final InvoiceRepository repository;
+    private final DiscountRepository discountRepository;
 
-    public InvoiceService(InvoiceRepository repository) {
+    public InvoiceService(InvoiceRepository repository, DiscountRepository discountRepository) {
         this.repository = repository;
+        this.discountRepository = discountRepository;
     }
 
     public List<InvoiceDTO> findAll() {
@@ -44,7 +50,30 @@ public class InvoiceService {
         validateStatus(dto.getStatus());
 
         try (Connection connection = DbConfig.getConnection()) {
-            repository.save(toModel(dto), connection);
+            Invoice invoice = toModel(dto);
+
+            Optional<Discount> activeDiscount =
+                    discountRepository.findActiveDiscountByDate(java.sql.Date.valueOf(invoice.getIssueDate()), connection);
+
+            if (activeDiscount.isPresent()) {
+                Discount discount = activeDiscount.get();
+
+                BigDecimal discountAmount = invoice.getTotalAmount()
+                        .multiply(BigDecimal.valueOf(discount.getPercentage()))
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+                BigDecimal finalAmount = invoice.getTotalAmount().subtract(discountAmount);
+
+                invoice.setDiscountId(discount.getId());
+                invoice.setDiscountAmount(discountAmount);
+                invoice.setFinalAmount(finalAmount);
+            } else {
+                invoice.setDiscountId(null);
+                invoice.setDiscountAmount(BigDecimal.ZERO);
+                invoice.setFinalAmount(invoice.getTotalAmount());
+            }
+
+            repository.save(invoice, connection);
         } catch (SQLException e) {
             throw new RuntimeException("Error while saving invoice.", e);
         }
@@ -76,14 +105,45 @@ public class InvoiceService {
             throw new RuntimeException("Invalid status! Allowed values are: Unpaid, Partially paid, Paid");
         }
     }
+    public void applyDiscountManually(Long invoiceId, Long discountId) {
+        try (Connection connection = DbConfig.getConnection()) {
+            Invoice invoice = repository.findById(invoiceId, connection);
+            if (invoice == null) {
+                throw new RuntimeException("Invoice not found.");
+            }
 
+            Optional<Discount> optionalDiscount = discountRepository.findById(discountId, connection);
+            if (optionalDiscount.isEmpty()) {
+                throw new RuntimeException("Discount not found.");
+            }
+
+            Discount discount = optionalDiscount.get();
+
+            BigDecimal discountAmount = invoice.getTotalAmount()
+                    .multiply(BigDecimal.valueOf(discount.getPercentage()))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+
+            BigDecimal finalAmount = invoice.getTotalAmount().subtract(discountAmount);
+
+            invoice.setDiscountId(discount.getId());
+            invoice.setDiscountAmount(discountAmount);
+            invoice.setFinalAmount(finalAmount);
+
+            repository.update(invoiceId, invoice, connection);
+        } catch (SQLException e) {
+            throw new RuntimeException("Error while applying discount.", e);
+        }
+    }
     private InvoiceDTO toDTO(Invoice invoice) {
         return new InvoiceDTO(
                 invoice.getId(),
                 invoice.getIssueDate(),
                 invoice.getTotalAmount(),
                 invoice.getStatus(),
-                invoice.getStayId()
+                invoice.getStayId(),
+                invoice.getDiscountId(),
+                invoice.getDiscountAmount(),
+                invoice.getFinalAmount()
         );
     }
 
@@ -93,7 +153,11 @@ public class InvoiceService {
                 dto.getIssueDate(),
                 dto.getTotalAmount(),
                 dto.getStatus(),
-                dto.getStayId()
+                dto.getStayId(),
+                dto.getDiscountId(),
+                dto.getDiscountAmount(),
+                dto.getFinalAmount()
         );
     }
+
 }
