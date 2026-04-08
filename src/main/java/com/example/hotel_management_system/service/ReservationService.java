@@ -2,11 +2,15 @@ package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.ReservationDTO;
+import com.example.hotel_management_system.enums.ReservationStatus;
 import com.example.hotel_management_system.model.Reservation;
+import com.example.hotel_management_system.model.Room;
 import com.example.hotel_management_system.repository.ReservationRepository;
+import com.example.hotel_management_system.repository.RoomRepository;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -14,11 +18,13 @@ import java.util.stream.Collectors;
 @Service
 public class ReservationService {
     private final ReservationRepository reservationRepository;
+    private final RoomRepository roomRepository;
 
-    public ReservationService(ReservationRepository reservationRepository) {
+    public ReservationService(ReservationRepository reservationRepository, RoomRepository roomRepository) {
         this.reservationRepository = reservationRepository;
+        this.roomRepository = roomRepository;
     }
-
+/*
     public ReservationDTO createReservation(ReservationDTO dto) throws SQLException {
         Reservation reservation = mapDTOToEntity(dto);
 
@@ -27,7 +33,42 @@ public class ReservationService {
 
             return mapEntityToDTO(reservation);
         }
+    }*/
+public ReservationDTO createReservation(ReservationDTO dto) throws SQLException {
+
+    try (Connection connection = DbConfig.getConnection()) {
+
+        java.sql.Date checkIn = new java.sql.Date(dto.getCheckInDate().getTime());
+        java.sql.Date checkOut = new java.sql.Date(dto.getCheckOutDate().getTime());
+
+
+        List<Room> availableRooms = RoomRepository.findAvailableRooms(
+                connection,
+                checkIn,
+                checkOut
+        );
+
+        boolean isAvailable = availableRooms.stream()
+                .anyMatch(room -> room.getId().equals(dto.getRoomId()));
+
+        if (!isAvailable) {
+            throw new RuntimeException("Soba nije dostupna za odabrani period!");
+        }
+
+        if (dto.getStatus() == null) {
+            dto.setStatus(ReservationStatus.PENDING);
+        }
+
+        Reservation reservation = mapDTOToEntity(dto);
+
+        if (reservation.getReservationDate() == null) {
+            reservation.setReservationDate(new java.util.Date());
+        }
+        reservationRepository.save(reservation, connection);
+
+        return mapEntityToDTO(reservation);
     }
+}
 
     public ReservationDTO getReservationById(Long id) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
