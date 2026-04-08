@@ -7,7 +7,9 @@ import com.example.hotel_management_system.repository.RoomRepository;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -53,6 +55,18 @@ public class RoomService {
 
             roomRepository.update(room, connection);
             return mapEntityToDTO(room);
+        }
+    }
+    public List<RoomDTO> getAvailableRooms(LocalDate from, LocalDate to) throws SQLException {
+        try (Connection connection = DbConfig.getConnection()) {
+
+            return roomRepository.findAvailableRooms(
+                            connection,
+                            Date.valueOf(from),
+                            Date.valueOf(to)
+                    ).stream()
+                    .map(this::mapEntityToDTO)
+                    .toList();
         }
     }
 

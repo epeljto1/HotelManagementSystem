@@ -28,6 +28,15 @@ public class RoomRepository {
         """;
 
     private final String DELETE_QUERY = "DELETE FROM NBP_ROOM WHERE ID = ?";
+    private  static final String FIND_AVAILABLE_ROOMS_QUERY = """
+        SELECT * FROM NBP_ROOM r
+        WHERE r.STATUS = 'AVAILABLE'
+        AND r.ID NOT IN (
+            SELECT res.ROOM_ID FROM NBP_RESERVATION res
+            WHERE (res.CHECK_IN_DATE <= ? AND res.CHECK_OUT_DATE >= ?)
+        )
+        ORDER BY r.ID
+    """;
 
     public void save(Room room, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY, new String[]{"ID"})) {
@@ -107,8 +116,27 @@ public class RoomRepository {
             DatabaseLogger.log(connection, "DELETE", "NBP_ROOM");
         }
     }
+    public static List<Room> findAvailableRooms(Connection connection,
+                                                Date from,
+                                                Date to) throws SQLException {
 
-    private Room mapResultSetToRoom(ResultSet rs) throws SQLException {
+        List<Room> rooms = new ArrayList<>();
+
+        try (PreparedStatement ps = connection.prepareStatement(FIND_AVAILABLE_ROOMS_QUERY)) {
+            ps.setDate(1, to);
+            ps.setDate(2, from);
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                rooms.add(mapResultSetToRoom(rs));
+            }
+        }
+
+        return rooms;
+    }
+
+    private static Room mapResultSetToRoom(ResultSet rs) throws SQLException {
         String statusStr = rs.getString("STATUS");
         RoomStatus status = (statusStr != null) ? RoomStatus.valueOf(statusStr) : RoomStatus.AVAILABLE;
 
