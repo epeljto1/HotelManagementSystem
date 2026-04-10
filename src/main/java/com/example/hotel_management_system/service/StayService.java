@@ -1,13 +1,21 @@
 package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
+import com.example.hotel_management_system.dto.CheckInDTO;
 import com.example.hotel_management_system.dto.StayDTO;
+import com.example.hotel_management_system.enums.ReservationStatus;
+import com.example.hotel_management_system.enums.RoomStatus;
+import com.example.hotel_management_system.model.Reservation;
+import com.example.hotel_management_system.model.Room;
 import com.example.hotel_management_system.model.Stay;
+import com.example.hotel_management_system.repository.ReservationRepository;
+import com.example.hotel_management_system.repository.RoomRepository;
 import com.example.hotel_management_system.repository.StayRepository;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -16,9 +24,15 @@ import java.util.stream.Collectors;
 public class StayService {
 
     private final StayRepository stayRepository;
+    private final ReservationRepository reservationRepository;
+    private final RoomRepository roomRepository;
 
-    public StayService(StayRepository stayRepository) {
+    public StayService(StayRepository stayRepository,
+                       ReservationRepository reservationRepository,
+                       RoomRepository roomRepository) {
         this.stayRepository = stayRepository;
+        this.reservationRepository = reservationRepository;
+        this.roomRepository = roomRepository;
     }
 
     public StayDTO createStay(StayDTO stayDTO) throws SQLException {
@@ -67,6 +81,82 @@ public class StayService {
             }
         }
         return false;
+    }
+
+    public void checkIn(CheckInDTO checkInDTO) throws SQLException {
+        Connection connection = null;
+
+        try {
+            connection = DbConfig.getConnection();
+            connection.setAutoCommit(false);
+
+            Optional<Reservation> reservationOptional =
+                    reservationRepository.findById(checkInDTO.getReservationId(), connection);
+
+            if (reservationOptional.isEmpty()) {
+                throw new RuntimeException("Reservation not found.");
+            }
+
+            Reservation reservation = reservationOptional.get();
+
+            if (reservation.getStatus() == ReservationStatus.CANCELLED) {
+                throw new RuntimeException("Cancelled reservation cannot be checked in.");
+            }
+
+            if (reservation.getStatus() == ReservationStatus.COMPLETED) {
+                throw new RuntimeException("Completed reservation cannot be checked in.");
+            }
+
+            Optional<Stay> existingStay =
+                    stayRepository.findByReservationId(checkInDTO.getReservationId(), connection);
+
+            if (existingStay.isPresent()) {
+                throw new RuntimeException("Stay already exists for this reservation.");
+            }
+
+            Optional<Room> roomOptional = roomRepository.findById(reservation.getRoomId(), connection);
+
+            if (roomOptional.isEmpty()) {
+                throw new RuntimeException("Room not found.");
+            }
+
+            Room room = roomOptional.get();
+
+            if (room.getStatus() == RoomStatus.OCCUPIED) {
+                throw new RuntimeException("Room is already occupied.");
+            }
+
+            if (room.getStatus() == RoomStatus.OUT_OF_SERVICE) {
+                throw new RuntimeException("Room is out of service.");
+            }
+
+            Stay stay = new Stay();
+            stay.setId(stayRepository.getNextId(connection));
+            stay.setCheckInTime(LocalDateTime.now());
+            stay.setCheckOutTime(null);
+            stay.setReservationId(reservation.getId());
+            stay.setActualTotalPrice(0.0);
+
+            stayRepository.save(stay, connection);
+
+            if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
+                reservationRepository.updateStatus(reservation.getId(), ReservationStatus.CONFIRMED, connection);
+            }
+
+            roomRepository.updateStatus(reservation.getRoomId(), RoomStatus.OCCUPIED, connection);
+
+            connection.commit();
+
+        } catch (Exception e) {
+            if (connection != null) {
+                connection.rollback();
+            }
+            throw new SQLException(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                connection.close();
+            }
+        }
     }
 
     private StayDTO mapEntityToDTO(Stay stay) {

@@ -1,5 +1,6 @@
 package com.example.hotel_management_system.controller;
 
+import com.example.hotel_management_system.dto.CheckInDTO;
 import com.example.hotel_management_system.dto.StayDTO;
 import com.example.hotel_management_system.service.StayService;
 import org.springframework.http.HttpStatus;
@@ -26,6 +27,16 @@ public class StayController {
             return ResponseEntity.status(HttpStatus.CREATED).body(createdStay);
         } catch (SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/check-in")
+    public ResponseEntity<String> checkIn(@RequestBody CheckInDTO checkInDTO) {
+        try {
+            stayService.checkIn(checkInDTO);
+            return ResponseEntity.ok("Guest checked in successfully.");
+        } catch (SQLException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
 
