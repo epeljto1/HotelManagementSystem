@@ -30,6 +30,12 @@ public class ReservationRepository {
             WHERE ID = ?
             """;
 
+    private final String UPDATE_STATUS_QUERY = """
+            UPDATE NBP_RESERVATION
+            SET STATUS = ?
+            WHERE ID = ?
+            """;
+
     private final String DELETE_QUERY = "DELETE FROM NBP_RESERVATION WHERE ID = ?";
 
     public void save(Reservation res, Connection conn) throws SQLException {
@@ -87,6 +93,16 @@ public class ReservationRepository {
             ps.setLong(10, res.getId());
 
             ps.executeUpdate();
+            DatabaseLogger.log(conn, "PUT", "NBP_RESERVATION");
+        }
+    }
+
+    public void updateStatus(Long id, ReservationStatus status, Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(UPDATE_STATUS_QUERY)) {
+            ps.setString(1, status.name());
+            ps.setLong(2, id);
+            ps.executeUpdate();
+
             DatabaseLogger.log(conn, "PUT", "NBP_RESERVATION");
         }
     }
