@@ -29,6 +29,12 @@ public class StayRepository {
             WHERE ID = ?
             """;
 
+    private final String SELECT_BY_RESERVATION_ID_QUERY = """
+            SELECT ID, CHECK_IN_TIME, CHECK_OUT_TIME, RESERVATION_ID, ACTUAL_TOTAL_PRICE
+            FROM NBP_STAY
+            WHERE RESERVATION_ID = ?
+            """;
+
     private final String UPDATE_QUERY = """
             UPDATE NBP_STAY
             SET CHECK_IN_TIME = ?, CHECK_OUT_TIME = ?, RESERVATION_ID = ?, ACTUAL_TOTAL_PRICE = ?
@@ -40,16 +46,26 @@ public class StayRepository {
             WHERE ID = ?
             """;
 
+    private final String NEXT_ID_QUERY = """
+            SELECT NVL(MAX(ID), 0) + 1 AS NEXT_ID
+            FROM NBP_STAY
+            """;
+
     public void save(Stay stay, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY)) {
             ps.setLong(1, stay.getId());
             ps.setTimestamp(2, Timestamp.valueOf(stay.getCheckInTime()));
-            ps.setTimestamp(3, Timestamp.valueOf(stay.getCheckOutTime()));
+
+            if (stay.getCheckOutTime() != null) {
+                ps.setTimestamp(3, Timestamp.valueOf(stay.getCheckOutTime()));
+            } else {
+                ps.setNull(3, Types.TIMESTAMP);
+            }
+
             ps.setLong(4, stay.getReservationId());
             ps.setDouble(5, stay.getActualTotalPrice());
             ps.executeUpdate();
 
-            //Logovanje akcije
             DatabaseLogger.log(connection, "POST", "NBP_STAY");
         }
     }
@@ -57,6 +73,18 @@ public class StayRepository {
     public Optional<Stay> findById(Long id, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(SELECT_BY_ID_QUERY)) {
             ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToStay(rs));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    public Optional<Stay> findByReservationId(Long reservationId, Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(SELECT_BY_RESERVATION_ID_QUERY)) {
+            ps.setLong(1, reservationId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return Optional.of(mapResultSetToStay(rs));
@@ -78,16 +106,31 @@ public class StayRepository {
         return stays;
     }
 
+    public Long getNextId(Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(NEXT_ID_QUERY);
+             ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) {
+                return rs.getLong("NEXT_ID");
+            }
+        }
+        return 1L;
+    }
+
     public void update(Stay stay, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(UPDATE_QUERY)) {
             ps.setTimestamp(1, Timestamp.valueOf(stay.getCheckInTime()));
-            ps.setTimestamp(2, Timestamp.valueOf(stay.getCheckOutTime()));
+
+            if (stay.getCheckOutTime() != null) {
+                ps.setTimestamp(2, Timestamp.valueOf(stay.getCheckOutTime()));
+            } else {
+                ps.setNull(2, Types.TIMESTAMP);
+            }
+
             ps.setLong(3, stay.getReservationId());
             ps.setDouble(4, stay.getActualTotalPrice());
             ps.setLong(5, stay.getId());
             ps.executeUpdate();
 
-            //Logovanje akcije
             DatabaseLogger.log(connection, "PUT", "NBP_STAY");
         }
     }
@@ -97,7 +140,6 @@ public class StayRepository {
             ps.setLong(1, id);
             ps.executeUpdate();
 
-            //Logovanje akcije
             DatabaseLogger.log(connection, "DELETE", "NBP_STAY");
         }
     }

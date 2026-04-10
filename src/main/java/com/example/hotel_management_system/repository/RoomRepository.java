@@ -1,10 +1,9 @@
 package com.example.hotel_management_system.repository;
 
-
 import com.example.hotel_management_system.enums.RoomStatus;
 import com.example.hotel_management_system.model.Room;
-import org.springframework.stereotype.Repository;
 import com.example.hotel_management_system.util.DatabaseLogger;
+import org.springframework.stereotype.Repository;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -13,26 +12,45 @@ import java.util.Optional;
 
 @Repository
 public class RoomRepository {
+
     private final String INSERT_QUERY = """
         INSERT INTO NBP_ROOM (ID, ROOM_NUMBER, FLOOR_NUMBER, STATUS, HOTEL_ID, ROOM_TYPE_ID)
         VALUES (NBP_ROOM_SEQ.NEXTVAL, ?, ?, ?, ?, ?)
     """;
-    private final String SELECT_ALL_QUERY = "SELECT * FROM NBP_ROOM ORDER BY ID";
 
-    private final String SELECT_BY_ID_QUERY = "SELECT * FROM NBP_ROOM WHERE ID = ?";
+    private final String SELECT_ALL_QUERY = """
+        SELECT * FROM NBP_ROOM
+        ORDER BY ID
+    """;
+
+    private final String SELECT_BY_ID_QUERY = """
+        SELECT * FROM NBP_ROOM
+        WHERE ID = ?
+    """;
 
     private final String UPDATE_QUERY = """
         UPDATE NBP_ROOM
         SET ROOM_NUMBER = ?, FLOOR_NUMBER = ?, STATUS = ?, HOTEL_ID = ?, ROOM_TYPE_ID = ?
         WHERE ID = ?
-        """;
+    """;
 
-    private final String DELETE_QUERY = "DELETE FROM NBP_ROOM WHERE ID = ?";
-    private  static final String FIND_AVAILABLE_ROOMS_QUERY = """
+    private final String UPDATE_STATUS_QUERY = """
+        UPDATE NBP_ROOM
+        SET STATUS = ?
+        WHERE ID = ?
+    """;
+
+    private final String DELETE_QUERY = """
+        DELETE FROM NBP_ROOM
+        WHERE ID = ?
+    """;
+
+    private static final String FIND_AVAILABLE_ROOMS_QUERY = """
         SELECT * FROM NBP_ROOM r
         WHERE r.STATUS = 'AVAILABLE'
         AND r.ID NOT IN (
-            SELECT res.ROOM_ID FROM NBP_RESERVATION res
+            SELECT res.ROOM_ID
+            FROM NBP_RESERVATION res
             WHERE (res.CHECK_IN_DATE <= ? AND res.CHECK_OUT_DATE >= ?)
         )
         ORDER BY r.ID
@@ -60,7 +78,6 @@ public class RoomRepository {
                 }
             }
 
-            // Logovanje akcije
             DatabaseLogger.log(connection, "POST", "NBP_ROOM");
         }
     }
@@ -68,6 +85,7 @@ public class RoomRepository {
     public Optional<Room> findById(Long id, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(SELECT_BY_ID_QUERY)) {
             ps.setLong(1, id);
+
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     return Optional.of(mapResultSetToRoom(rs));
@@ -79,30 +97,45 @@ public class RoomRepository {
 
     public List<Room> findAll(Connection connection) throws SQLException {
         List<Room> rooms = new ArrayList<>();
+
         try (PreparedStatement ps = connection.prepareStatement(SELECT_ALL_QUERY);
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 rooms.add(mapResultSetToRoom(rs));
             }
         }
+
         return rooms;
     }
 
     public void update(Room room, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(UPDATE_QUERY)) {
             ps.setString(1, room.getRoomNumber());
+
             if (room.getFloorNumber() != null) {
                 ps.setInt(2, room.getFloorNumber());
             } else {
                 ps.setNull(2, Types.INTEGER);
             }
+
             ps.setString(3, room.getStatus().name());
             ps.setLong(4, room.getHotelId());
             ps.setLong(5, room.getRoomTypeId());
             ps.setLong(6, room.getId());
+
             ps.executeUpdate();
 
-            //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_ROOM");
+        }
+    }
+
+    public void updateStatus(Long id, RoomStatus status, Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(UPDATE_STATUS_QUERY)) {
+            ps.setString(1, status.name());
+            ps.setLong(2, id);
+
+            ps.executeUpdate();
+
             DatabaseLogger.log(connection, "PUT", "NBP_ROOM");
         }
     }
@@ -112,24 +145,21 @@ public class RoomRepository {
             ps.setLong(1, id);
             ps.executeUpdate();
 
-            //Logovanje akcije
             DatabaseLogger.log(connection, "DELETE", "NBP_ROOM");
         }
     }
-    public static List<Room> findAvailableRooms(Connection connection,
-                                                Date from,
-                                                Date to) throws SQLException {
 
+    public static List<Room> findAvailableRooms(Connection connection, Date from, Date to) throws SQLException {
         List<Room> rooms = new ArrayList<>();
 
         try (PreparedStatement ps = connection.prepareStatement(FIND_AVAILABLE_ROOMS_QUERY)) {
             ps.setDate(1, to);
             ps.setDate(2, from);
 
-            ResultSet rs = ps.executeQuery();
-
-            while (rs.next()) {
-                rooms.add(mapResultSetToRoom(rs));
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    rooms.add(mapResultSetToRoom(rs));
+                }
             }
         }
 
@@ -138,7 +168,7 @@ public class RoomRepository {
 
     private static Room mapResultSetToRoom(ResultSet rs) throws SQLException {
         String statusStr = rs.getString("STATUS");
-        RoomStatus status = (statusStr != null) ? RoomStatus.valueOf(statusStr) : RoomStatus.AVAILABLE;
+        RoomStatus status = statusStr != null ? RoomStatus.valueOf(statusStr) : RoomStatus.AVAILABLE;
 
         int floor = rs.getInt("FLOOR_NUMBER");
         Integer floorNumber = rs.wasNull() ? null : floor;
