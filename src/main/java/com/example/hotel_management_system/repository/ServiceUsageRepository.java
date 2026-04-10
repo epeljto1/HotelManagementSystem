@@ -43,6 +43,12 @@ public class ServiceUsageRepository {
             WHERE ID = ?
             """;
 
+    private final String FIND_BY_STAY_ID_QUERY = """
+            SELECT ID, STAY_ID, SERVICE_ID, QUANTITY, USAGE_DATE, TOTAL_PRICE
+            FROM NBP_SERVICE_USAGE
+            WHERE STAY_ID = ?
+            """;
+
     public List<ServiceUsage> findAll(Connection connection) throws SQLException {
         List<ServiceUsage> list = new ArrayList<>();
 
@@ -109,6 +115,19 @@ public class ServiceUsageRepository {
             //Logovanje akcije
             DatabaseLogger.log(connection, "DELETE", "NBP_SERVICE_USAGE");
         }
+    }
+
+    public List<ServiceUsage> findByStayId(Long stayId, Connection connection) throws SQLException {
+        List<ServiceUsage> list = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(FIND_BY_STAY_ID_QUERY)) {
+            ps.setLong(1, stayId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapResultSet(rs));
+                }
+            }
+        }
+        return list;
     }
 
     private ServiceUsage mapResultSet(ResultSet rs) throws SQLException {

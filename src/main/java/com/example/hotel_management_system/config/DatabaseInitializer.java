@@ -188,10 +188,8 @@ public class DatabaseInitializer {
         """;
 
         String createPaymentSeq = "CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH 1 INCREMENT BY 1";
-        String createDiscountSeq = "CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH 1 INCREMENT BY 1";
         String createLogSeq = "CREATE SEQUENCE NBP_LOG_SEQ START WITH 1 INCREMENT BY 1";
         String createRoomSeq = "CREATE SEQUENCE NBP_ROOM_SEQ START WITH 1 INCREMENT BY 1";
-        String createReservationSeq = "CREATE SEQUENCE NBP_RESERVATION_SEQ START WITH 1 INCREMENT BY 1";
         String createUserSeq = "CREATE SEQUENCE NBP_USER_SEQ START WITH 7 INCREMENT BY 1";
 
         String createGuestLogTrigger = """
@@ -268,10 +266,21 @@ public class DatabaseInitializer {
                 System.out.println("Table NBP_PAYMENT created.");
             }
 
-            if (!sequenceExists(conn, "NBP_PAYMENT_SEQ")) {
-                stmt.executeUpdate(createPaymentSeq);
-                System.out.println("Sequence NBP_PAYMENT_SEQ created.");
+            // Payment Sequence
+            if (sequenceExists(conn, "NBP_PAYMENT_SEQ")) {
+                stmt.executeUpdate("DROP SEQUENCE NBP_PAYMENT_SEQ");
             }
+            long maxPaymentId = getMaxId(conn, "NBP_PAYMENT", "ID");
+            stmt.executeUpdate("CREATE SEQUENCE NBP_PAYMENT_SEQ START WITH " + (maxPaymentId + 1) + " INCREMENT BY 1");
+            System.out.println("Sequence NBP_PAYMENT_SEQ created/recreated.");
+
+            // Invoice Sequence
+            if (sequenceExists(conn, "NBP_INVOICE_SEQ")) {
+                stmt.executeUpdate("DROP SEQUENCE NBP_INVOICE_SEQ");
+            }
+            long maxInvoiceId = getMaxId(conn, "NBP_INVOICE", "ID");
+            stmt.executeUpdate("CREATE SEQUENCE NBP_INVOICE_SEQ START WITH " + (maxInvoiceId + 1) + " INCREMENT BY 1");
+            System.out.println("Sequence NBP_INVOICE_SEQ created/recreated.");
 
             if (!tableExists(conn, "NBP_DISCOUNT")) {
                 stmt.executeUpdate(createDiscount);
@@ -288,10 +297,13 @@ public class DatabaseInitializer {
                 System.out.println("Sequence NBP_USER_SEQ created.");
             }
 
-            if (!sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
-                stmt.executeUpdate(createDiscountSeq);
-                System.out.println("Sequence NBP_DISCOUNT_SEQ created.");
+            // Discount Sequence
+            if (sequenceExists(conn, "NBP_DISCOUNT_SEQ")) {
+                stmt.executeUpdate("DROP SEQUENCE NBP_DISCOUNT_SEQ");
             }
+            long maxDiscountId = getMaxId(conn, "NBP_DISCOUNT", "ID");
+            stmt.executeUpdate("CREATE SEQUENCE NBP_DISCOUNT_SEQ START WITH " + (maxDiscountId + 1) + " INCREMENT BY 1");
+            System.out.println("Sequence NBP_DISCOUNT_SEQ created/recreated.");
 
             if (!tableExists(conn, "NBP_ROOM")) {
                 stmt.executeUpdate(createRoom);
@@ -308,10 +320,13 @@ public class DatabaseInitializer {
                 System.out.println("Table NBP_RESERVATION created.");
             }
 
-            if (!sequenceExists(conn, "NBP_RESERVATION_SEQ")) {
-                stmt.executeUpdate(createReservationSeq);
-                System.out.println("Sequence NBP_RESERVATION_SEQ created.");
+            // Reservation Sequence
+            if (sequenceExists(conn, "NBP_RESERVATION_SEQ")) {
+                stmt.executeUpdate("DROP SEQUENCE NBP_RESERVATION_SEQ");
             }
+            long maxReservationId = getMaxId(conn, "NBP_RESERVATION", "ID");
+            stmt.executeUpdate("CREATE SEQUENCE NBP_RESERVATION_SEQ START WITH " + (maxReservationId + 1) + " INCREMENT BY 1");
+            System.out.println("Sequence NBP_RESERVATION_SEQ created/recreated.");
 
             if (!tableExists(conn, "NBP_LOG")) {
                 stmt.executeUpdate(createLog);
@@ -336,6 +351,19 @@ public class DatabaseInitializer {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private static long getMaxId(Connection conn, String tableName, String columnName) {
+        String query = "SELECT MAX(" + columnName + ") FROM " + tableName;
+        try (var stmt = conn.createStatement();
+             var rs = stmt.executeQuery(query)) {
+            if (rs.next()) {
+                return rs.getLong(1);
+            }
+        } catch (SQLException e) {
+            return 0;
+        }
+        return 0;
     }
 
     private static boolean tableExists(Connection conn, String tableName) {
