@@ -19,11 +19,14 @@ public class PaymentController {
     }
 
     @PostMapping
-    public ResponseEntity<PaymentDTO> createPayment(@RequestBody PaymentDTO paymentDTO) {
+    public ResponseEntity<?> createPayment(@RequestBody PaymentDTO paymentDTO) {
         try {
             PaymentDTO createdPayment = paymentService.createPayment(paymentDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdPayment);
-        } catch (SQLException e) {
+        }catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+        catch (SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }

@@ -21,12 +21,21 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final InvoiceRepository invoiceRepository;
 
+    private static final List<String> ALLOWED_METHODS = List.of(
+            "Cash", "Debit Card", "Credit Card", "Bank transfer"
+    );
+
     public PaymentService(PaymentRepository paymentRepository, InvoiceRepository invoiceRepository) {
         this.paymentRepository = paymentRepository;
         this.invoiceRepository = invoiceRepository;
     }
 
     public PaymentDTO createPayment(PaymentDTO paymentDTO) throws SQLException {
+        if (paymentDTO.getPaymentMethod() == null ||
+                !ALLOWED_METHODS.contains(paymentDTO.getPaymentMethod())) {
+            throw new IllegalArgumentException("Invalid payment method. Allowed methods are: " + ALLOWED_METHODS);
+        }
+
         Payment payment = mapDTOToEntity(paymentDTO);
 
         try (Connection connection = DbConfig.getConnection()) {
