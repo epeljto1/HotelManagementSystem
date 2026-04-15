@@ -29,7 +29,7 @@ public class InvoiceRepository {
 
     private final String INSERT_QUERY = """
         INSERT INTO NBP_INVOICE (ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID, DISCOUNT_ID, DISCOUNT_AMOUNT, FINAL_AMOUNT)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (NBP_INVOICE_SEQ.NEXTVAL, ?, ?, ?, ?, ?, ?, ?)
         """;
 
     private final String UPDATE_QUERY = """
@@ -41,6 +41,12 @@ public class InvoiceRepository {
     private final String DELETE_QUERY = """
         DELETE FROM NBP_INVOICE
         WHERE ID = ?
+        """;
+
+    private final String FIND_BY_STAY_ID_QUERY = """
+        SELECT ID, ISSUE_DATE, TOTAL_AMOUNT, STATUS, STAY_ID, DISCOUNT_ID, DISCOUNT_AMOUNT, FINAL_AMOUNT
+        FROM NBP_INVOICE
+        WHERE STAY_ID = ?
         """;
 
     public List<Invoice> findAll(Connection connection) throws SQLException {
@@ -73,32 +79,30 @@ public class InvoiceRepository {
 
     public void save(Invoice invoice, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY)) {
-            ps.setLong(1, invoice.getId());
-            ps.setDate(2, Date.valueOf(invoice.getIssueDate()));
-            ps.setBigDecimal(3, invoice.getTotalAmount());
-            ps.setString(4, invoice.getStatus());
-            ps.setLong(5, invoice.getStayId());
+            ps.setDate(1, Date.valueOf(invoice.getIssueDate()));
+            ps.setBigDecimal(2, invoice.getTotalAmount());
+            ps.setString(3, invoice.getStatus());
+            ps.setLong(4, invoice.getStayId());
             if (invoice.getDiscountId() != null) {
-                ps.setLong(6, invoice.getDiscountId());
+                ps.setLong(5, invoice.getDiscountId());
+            } else {
+                ps.setNull(5, java.sql.Types.NUMERIC);
+            }
+
+            if (invoice.getDiscountAmount() != null) {
+                ps.setBigDecimal(6, invoice.getDiscountAmount());
             } else {
                 ps.setNull(6, java.sql.Types.NUMERIC);
             }
 
-            if (invoice.getDiscountAmount() != null) {
-                ps.setBigDecimal(7, invoice.getDiscountAmount());
+            if (invoice.getFinalAmount() != null) {
+                ps.setBigDecimal(7, invoice.getFinalAmount());
             } else {
                 ps.setNull(7, java.sql.Types.NUMERIC);
             }
 
-            if (invoice.getFinalAmount() != null) {
-                ps.setBigDecimal(8, invoice.getFinalAmount());
-            } else {
-                ps.setNull(8, java.sql.Types.NUMERIC);
-            }
-
             ps.executeUpdate();
 
-            //Logovanje akcije
             DatabaseLogger.log(connection, "POST", "NBP_INVOICE");
         }
     }
@@ -144,6 +148,18 @@ public class InvoiceRepository {
             //Logovanje akcije
             DatabaseLogger.log(connection, "DELETE", "NBP_INVOICE");
         }
+    }
+
+    public Invoice findByStayId(Long stayId, Connection connection) throws SQLException {
+        try (PreparedStatement ps = connection.prepareStatement(FIND_BY_STAY_ID_QUERY)) {
+            ps.setLong(1, stayId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToInvoice(rs);
+                }
+            }
+        }
+        return null;
     }
 
     private Invoice mapResultSetToInvoice(ResultSet rs) throws SQLException {

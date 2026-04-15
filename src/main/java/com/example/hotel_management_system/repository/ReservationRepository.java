@@ -38,6 +38,10 @@ public class ReservationRepository {
 
     private final String DELETE_QUERY = "DELETE FROM NBP_RESERVATION WHERE ID = ?";
 
+    private final String FIND_BY_RESERVATION_ID_AND_STATUS = """
+            SELECT * FROM NBP_RESERVATION WHERE ID = ? AND STATUS = ?
+            """;
+
     public void save(Reservation res, Connection conn) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(INSERT_QUERY)) {
             ps.setTimestamp(1, new Timestamp(res.getReservationDate().getTime()));
@@ -113,6 +117,19 @@ public class ReservationRepository {
             ps.executeUpdate();
             DatabaseLogger.log(conn, "DELETE", "NBP_RESERVATION");
         }
+    }
+
+    public Optional<Reservation> findByIdAndStatus(Long id, ReservationStatus status, Connection conn) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(FIND_BY_RESERVATION_ID_AND_STATUS)) {
+            ps.setLong(1, id);
+            ps.setString(2, status.name());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(mapResultSetToReservation(rs));
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private Reservation mapResultSetToReservation(ResultSet rs) throws SQLException {
