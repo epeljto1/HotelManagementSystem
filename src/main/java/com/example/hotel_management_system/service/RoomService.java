@@ -79,6 +79,17 @@ public class RoomService {
         }
     }
 
+    public void updateRoomImage(Long id, byte[] image) throws SQLException {
+        try (Connection conn = DbConfig.getConnection()) {
+            Room room = roomRepository.findById(id, conn)
+                    .orElseThrow(() -> new RuntimeException("Room not found"));
+
+            room.setImage(image);
+
+            roomRepository.update(room, conn);
+        }
+    }
+
     private RoomDTO mapEntityToDTO(Room room) {
         return new RoomDTO(
                 room.getId(),
@@ -86,7 +97,8 @@ public class RoomService {
                 room.getFloorNumber(),
                 room.getStatus(),
                 room.getHotelId(),
-                room.getRoomTypeId()
+                room.getRoomTypeId(),
+                room.getImage()
         );
     }
 
@@ -97,7 +109,8 @@ public class RoomService {
                 roomDTO.getFloorNumber(),
                 roomDTO.getStatus(),
                 roomDTO.getHotelId(),
-                roomDTO.getRoomTypeId()
+                roomDTO.getRoomTypeId(),
+                roomDTO.getImage()
         );
     }
 }

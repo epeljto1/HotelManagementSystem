@@ -14,8 +14,8 @@ import java.util.Optional;
 public class RoomRepository {
 
     private final String INSERT_QUERY = """
-        INSERT INTO NBP_ROOM (ID, ROOM_NUMBER, FLOOR_NUMBER, STATUS, HOTEL_ID, ROOM_TYPE_ID)
-        VALUES (NBP_ROOM_SEQ.NEXTVAL, ?, ?, ?, ?, ?)
+        INSERT INTO NBP_ROOM (ID, ROOM_NUMBER, FLOOR_NUMBER, STATUS, HOTEL_ID, ROOM_TYPE_ID, IMAGE)
+        VALUES (NBP_ROOM_SEQ.NEXTVAL, ?, ?, ?, ?, ?, ?)
     """;
 
     private final String SELECT_ALL_QUERY = """
@@ -30,7 +30,7 @@ public class RoomRepository {
 
     private final String UPDATE_QUERY = """
         UPDATE NBP_ROOM
-        SET ROOM_NUMBER = ?, FLOOR_NUMBER = ?, STATUS = ?, HOTEL_ID = ?, ROOM_TYPE_ID = ?
+        SET ROOM_NUMBER = ?, FLOOR_NUMBER = ?, STATUS = ?, HOTEL_ID = ?, ROOM_TYPE_ID = ?, IMAGE = ?
         WHERE ID = ?
     """;
 
@@ -69,6 +69,13 @@ public class RoomRepository {
             ps.setString(3, room.getStatus().name());
             ps.setLong(4, room.getHotelId());
             ps.setLong(5, room.getRoomTypeId());
+
+            // Rad sa BLOB slikom
+            if (room.getImage() != null) {
+                ps.setBytes(6, room.getImage());
+            } else {
+                ps.setNull(6, Types.BLOB);
+            }
 
             ps.executeUpdate();
 
@@ -121,7 +128,15 @@ public class RoomRepository {
             ps.setString(3, room.getStatus().name());
             ps.setLong(4, room.getHotelId());
             ps.setLong(5, room.getRoomTypeId());
-            ps.setLong(6, room.getId());
+
+            // Update BLOB slike
+            if (room.getImage() != null) {
+                ps.setBytes(6, room.getImage());
+            } else {
+                ps.setNull(6, Types.BLOB);
+            }
+
+            ps.setLong(7, room.getId());
 
             ps.executeUpdate();
 
@@ -173,13 +188,20 @@ public class RoomRepository {
         int floor = rs.getInt("FLOOR_NUMBER");
         Integer floorNumber = rs.wasNull() ? null : floor;
 
-        return new Room(
+        Room room = new Room(
                 rs.getLong("ID"),
                 rs.getString("ROOM_NUMBER"),
                 floorNumber,
                 status,
                 rs.getLong("HOTEL_ID"),
-                rs.getLong("ROOM_TYPE_ID")
+                rs.getLong("ROOM_TYPE_ID"),
+                rs.getBytes("IMAGE")
         );
+
+        // Čitanje slike iz BLOB kolone
+        byte[] imgBytes = rs.getBytes("IMAGE");
+        room.setImage(imgBytes);
+
+        return room;
     }
 }

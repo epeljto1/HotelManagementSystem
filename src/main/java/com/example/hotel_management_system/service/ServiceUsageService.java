@@ -108,10 +108,20 @@ public class ServiceUsageService {
     }
 
     private ServiceUsageDTO toDTO(ServiceUsage serviceUsage) {
+        String name = "Unknown Service";
+        try (Connection connection = DbConfig.getConnection()) {
+            Optional<ExtraService> service = extraServiceRepository.findById(serviceUsage.getServiceId(), connection);
+            if (service.isPresent()) {
+                name = service.get().getName();
+            }
+        } catch (SQLException e) {
+        }
+
+        // 2. Kreiranje DTO-a sa tačnim redoslijedom
         return new ServiceUsageDTO(
                 serviceUsage.getId(),
                 serviceUsage.getStayId(),
-                serviceUsage.getServiceId(),
+                name,
                 serviceUsage.getQuantity(),
                 serviceUsage.getUsageDate(),
                 serviceUsage.getTotalPrice()

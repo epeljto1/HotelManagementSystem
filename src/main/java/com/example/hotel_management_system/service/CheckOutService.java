@@ -3,6 +3,7 @@ package com.example.hotel_management_system.service;
 import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.CheckOutRequestDTO;
 import com.example.hotel_management_system.dto.CheckOutResponseDTO;
+import com.example.hotel_management_system.dto.ServiceUsageDTO;
 import com.example.hotel_management_system.enums.ReservationStatus;
 import com.example.hotel_management_system.enums.RoomStatus;
 import com.example.hotel_management_system.exception.InvoiceAlreadyExistsException;
@@ -23,9 +24,6 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Service for handling guest check-out and invoice generation
- */
 @Service
 public class CheckOutService {
 
@@ -36,6 +34,8 @@ public class CheckOutService {
     private final InvoiceRepository invoiceRepository;
     private final ServiceUsageRepository serviceUsageRepository;
     private final DiscountRepository discountRepository;
+    private final UserRepository userRepository;
+    private final PdfInvoiceService pdfInvoiceService;
 
     public CheckOutService(
             ReservationRepository reservationRepository,
@@ -44,7 +44,9 @@ public class CheckOutService {
             StayRepository stayRepository,
             InvoiceRepository invoiceRepository,
             ServiceUsageRepository serviceUsageRepository,
-            DiscountRepository discountRepository) {
+            DiscountRepository discountRepository,
+            UserRepository userRepository,
+            PdfInvoiceService pdfInvoiceService) {
         this.reservationRepository = reservationRepository;
         this.roomRepository = roomRepository;
         this.roomTypeRepository = roomTypeRepository;
@@ -52,61 +54,33 @@ public class CheckOutService {
         this.invoiceRepository = invoiceRepository;
         this.serviceUsageRepository = serviceUsageRepository;
         this.discountRepository = discountRepository;
+        this.userRepository = userRepository;
+        this.pdfInvoiceService = pdfInvoiceService;
     }
 
-    /**
-     * Process guest check-out with invoice generation
-     * 
-     * This is a transactional operation that:
-     * 1. Validates the reservation exists and is in CONFIRMED state
-     * 2. Creates/updates the stay record with actual check-out time
-     * 3. Calculates invoice with:
-     *    - Accommodation cost = nights × price per night
-     *    - Additional services cost
-     *    - Applies active discount if available
-     * 4. Updates room status to AVAILABLE
-     * 5. Updates reservation status to COMPLETED
-     * 
-     * @param request Check-out request details
-     * @return Check-out response with invoice breakdown
-     * @throws ReservationNotFoundException if reservation doesn't exist
-     * @throws InvalidReservationStatusException if reservation is not CONFIRMED
-     * @throws RoomNotFoundException if room doesn't exist
-     * @throws InvoiceAlreadyExistsException if invoice already exists for the stay
-     */
     public CheckOutResponseDTO processCheckOut(CheckOutRequestDTO request) throws SQLException {
         try (Connection conn = DbConfig.getConnection()) {
-            // Start transaction
             conn.setAutoCommit(false);
             try {
-                // Step 1: Validate and fetch reservation
+                // 1. Dohvatanje rezervacije
                 Reservation reservation = reservationRepository.findById(request.getReservationId(), conn)
-                    .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
+                        .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
 
-                // Verify reservation is in CONFIRMED status (checked in)
                 if (reservation.getStatus() != ReservationStatus.CONFIRMED) {
-                    throw new InvalidReservationStatusException(
-                        "Only CONFIRMED reservations can be checked out. Current status: " + reservation.getStatus()
-                    );
+                    throw new InvalidReservationStatusException("Samo potvrđene rezervacije se mogu odjaviti.");
                 }
 
-                // Step 2: Fetch room and validate
                 Room room = roomRepository.findById(reservation.getRoomId(), conn)
-                    .orElseThrow(() -> new RoomNotFoundException(reservation.getRoomId()));
+                        .orElseThrow(() -> new RoomNotFoundException(reservation.getRoomId()));
 
-                // Step 3: Fetch room type for pricing
                 RoomType roomType = roomTypeRepository.findById(room.getRoomTypeId(), conn)
-                    .orElseThrow(() -> new RuntimeException("Room type not found with id: " + room.getRoomTypeId()));
+                        .orElseThrow(() -> new RuntimeException("Tip sobe nije pronadjen."));
 
-                // Step 4: Determine actual check-out time
-                LocalDateTime checkOutTime = request.getActualCheckOutTime() != null 
-                    ? request.getActualCheckOutTime() 
-                    : LocalDateTime.now();
+                LocalDateTime checkOutTime = request.getActualCheckOutTime() != null ? request.getActualCheckOutTime() : LocalDateTime.now();
 
-                // Step 5: Get or create Stay record
+                // 2. Stay
                 Stay stay = stayRepository.findById(reservation.getId(), conn).orElse(null);
                 if (stay == null) {
-                    // Create new stay record
                     stay = new Stay();
                     stay.setId(reservation.getId());
                     stay.setReservationId(reservation.getId());
@@ -114,102 +88,87 @@ public class CheckOutService {
                     stay.setCheckOutTime(checkOutTime);
                     stay.setActualTotalPrice(0.0);
                     stayRepository.save(stay, conn);
-                } else {
-                    // Update existing stay with actual check-out time
-                    stay.setCheckOutTime(checkOutTime);
-                    stayRepository.update(stay, conn);
                 }
 
-                // Step 6: Calculate accommodation cost
-                BigDecimal accommodationCost = calculateAccommodationCost(
-                    reservation.getCheckInDate(),
-                    checkOutTime,
-                    roomType.getPricePerNight()
-                );
+                // 3. Kalkulacija troskova
+                BigDecimal accommodationCost = calculateAccommodationCost(reservation.getCheckInDate(), checkOutTime, roomType.getPricePerNight());
 
-                // Step 7: Calculate additional services cost
-                List<ServiceUsage> serviceUsages = serviceUsageRepository.findByStayId(stay.getId(), conn);
-                BigDecimal additionalServicesCost = serviceUsages.stream()
-                    .map(ServiceUsage::getTotalPrice)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+                // Detaljna obrada usluga
+                List<ServiceUsage> usages = serviceUsageRepository.findByStayId(stay.getId(), conn);
+                BigDecimal additionalServicesCost = BigDecimal.ZERO;
+                List<ServiceUsageDTO> serviceDetails = new java.util.ArrayList<>(); // Lista za DTO
 
-                // Step 8: Calculate subtotal
+                if (usages != null) {
+                    for (ServiceUsage u : usages) {
+                        ServiceUsageDTO dto = new ServiceUsageDTO();
+                        dto.setId(u.getId());
+                        dto.setServiceId(u.getServiceId());
+                        dto.setQuantity(u.getQuantity());
+                        dto.setTotalPrice(u.getTotalPrice());
+                        dto.setUsageDate(u.getUsageDate() != null ? u.getUsageDate() : LocalDate.now());
+
+                        String serviceName = serviceUsageRepository.findServiceNameById(u.getServiceId(), conn);
+                        dto.setServiceName(serviceName);
+
+                        serviceDetails.add(dto);
+
+                        BigDecimal price = u.getTotalPrice() != null ? u.getTotalPrice() : BigDecimal.ZERO;
+                        additionalServicesCost = additionalServicesCost.add(price);
+                    }
+                }
+
                 BigDecimal subtotal = accommodationCost.add(additionalServicesCost);
 
-                // Step 9: Check for and apply active discount
-                Optional<Discount> activeDiscount = discountRepository.findActiveDiscountByDate(
-                    java.sql.Date.valueOf(LocalDate.now()),
-                    conn
-                );
-
+                // Popust
+                Optional<Discount> activeDiscount = discountRepository.findActiveDiscountByDate(java.sql.Date.valueOf(LocalDate.now()), conn);
                 BigDecimal discountAmount = BigDecimal.ZERO;
-                BigDecimal finalAmount = subtotal;
-                Long discountId = null;
-
+                Long dId = null;
                 if (activeDiscount.isPresent()) {
-                    Discount discount = activeDiscount.get();
-                    discountId = discount.getId();
-                    
-                    // Calculate discount amount
-                    discountAmount = subtotal
-                        .multiply(BigDecimal.valueOf(discount.getPercentage()))
-                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                    dId = activeDiscount.get().getId();
+                    discountAmount = subtotal.multiply(BigDecimal.valueOf(activeDiscount.get().getPercentage()))
+                            .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                }
+                BigDecimal finalAmount = subtotal.subtract(discountAmount);
 
-                    // Apply discount
-                    finalAmount = subtotal.subtract(discountAmount);
+                // 4. Kreiranje Invoice-a
+                if (invoiceRepository.findByStayId(stay.getId(), conn) != null) {
+                    throw new InvoiceAlreadyExistsException("Racun vec postoji.");
                 }
 
-                // Ensure final amount is never negative
-                if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
-                    finalAmount = BigDecimal.ZERO;
-                }
-
-                // Step 10: Check if invoice already exists
-                Invoice existingInvoice = invoiceRepository.findByStayId(stay.getId(), conn);
-                if (existingInvoice != null) {
-                    throw new InvoiceAlreadyExistsException(
-                        "An invoice already exists for reservation id: " + reservation.getId()
-                    );
-                }
-
-                // Step 11: Create invoice
                 Invoice invoice = new Invoice();
                 invoice.setIssueDate(LocalDate.now());
                 invoice.setTotalAmount(subtotal);
-                invoice.setStatus("UNPAID");
+                invoice.setStatus("PAID");
                 invoice.setStayId(stay.getId());
-                invoice.setDiscountId(discountId);
+                invoice.setDiscountId(dId);
                 invoice.setDiscountAmount(discountAmount);
                 invoice.setFinalAmount(finalAmount);
 
+                CheckOutResponseDTO responseDTO = buildCheckOutResponse(reservation, room, roomType, invoice, accommodationCost, additionalServicesCost, discountAmount, finalAmount, activeDiscount.orElse(null), checkOutTime);
+
+                responseDTO.setServiceDetails(serviceDetails);
+
+                String guestName = userRepository.findById(reservation.getGuestId(), conn).map(User::getUsername).orElse("Gost #" + reservation.getGuestId());
+                responseDTO.setGuestFullName(guestName);
+                responseDTO.setInvoiceId(reservation.getId());
+
+                // Generisanje PDF-a
+                byte[] pdfBytes = pdfInvoiceService.generateInvoicePdfBytes(responseDTO);
+                invoice.setInvoicePdf(pdfBytes);
+
+                // Spasavanje u bazu
                 invoiceRepository.save(invoice, conn);
 
-                // Step 12: Update room status to AVAILABLE
+                // 5. Update statusa
                 room.setStatus(RoomStatus.AVAILABLE);
                 roomRepository.update(room, conn);
-
-                // Step 13: Update reservation status to COMPLETED
                 reservation.setStatus(ReservationStatus.COMPLETED);
                 reservationRepository.update(reservation, conn);
 
-                // Commit transaction
                 conn.commit();
+                return responseDTO;
 
-                // Step 14: Build response
-                return buildCheckOutResponse(
-                    reservation,
-                    room,
-                    roomType,
-                    invoice,
-                    accommodationCost,
-                    additionalServicesCost,
-                    discountAmount,
-                    finalAmount,
-                    activeDiscount.orElse(null),
-                    checkOutTime
-                );
-
-            } catch (SQLException e) {
+            } catch (Exception e) {
                 conn.rollback();
                 throw e;
             } finally {
@@ -218,93 +177,84 @@ public class CheckOutService {
         }
     }
 
-    /**
-     * Calculate accommodation cost based on check-in/check-out dates and price per night
-     */
-    private BigDecimal calculateAccommodationCost(
-            java.util.Date checkInDate,
-            LocalDateTime checkOutDateTime,
-            Double pricePerNight) {
-        
-        // Convert checkInDate to LocalDateTime (use start of day)
-        LocalDateTime checkInDateTime = checkInDate.toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDateTime();
+    public CheckOutResponseDTO getCheckOutDetailsByReservationId(Long reservationId) throws SQLException {
+        try (Connection conn = DbConfig.getConnection()) {
+            Reservation res = reservationRepository.findById(reservationId, conn)
+                    .orElseThrow(() -> new ReservationNotFoundException(reservationId));
 
-        // Calculate number of nights
-        int nights = calculateNumberOfNights(checkInDateTime, checkOutDateTime);
-        if (nights < 1) {
-            nights = 1; // Minimum 1 night
+            String guestIdentifier = userRepository.findById(res.getGuestId(), conn)
+                    .map(User::getUsername).orElse("Gost #" + res.getGuestId());
+
+            Room room = roomRepository.findById(res.getRoomId(), conn)
+                    .orElseThrow(() -> new RoomNotFoundException(res.getRoomId()));
+
+            RoomType type = roomTypeRepository.findById(room.getRoomTypeId(), conn)
+                    .orElseThrow(() -> new RuntimeException("Tip sobe nije pronađen"));
+
+            Invoice inv = invoiceRepository.findByStayId(reservationId, conn);
+            if (inv == null) throw new RuntimeException("Račun nije pronađen.");
+
+            Stay stay = stayRepository.findById(reservationId, conn).orElse(null);
+            Discount discount = (inv.getDiscountId() != null) ?
+                    discountRepository.findById(inv.getDiscountId(), conn).orElse(null) : null;
+
+            CheckOutResponseDTO response = buildCheckOutResponse(
+                    res, room, type, inv, inv.getTotalAmount(), BigDecimal.ZERO,
+                    inv.getDiscountAmount(), inv.getFinalAmount(), discount,
+                    stay != null ? stay.getCheckOutTime() : LocalDateTime.now()
+            );
+
+            response.setGuestFullName(guestIdentifier);
+            return response;
         }
-
-        return BigDecimal.valueOf(nights)
-            .multiply(BigDecimal.valueOf(pricePerNight))
-            .setScale(2, RoundingMode.HALF_UP);
     }
 
-    /**
-     * Calculate number of nights between check-in and check-out
-     */
+    private BigDecimal calculateAccommodationCost(java.util.Date checkInDate, LocalDateTime checkOutDateTime, Double pricePerNight) {
+        LocalDateTime checkInDateTime = convertToLocalDateTime(checkInDate);
+        int nights = calculateNumberOfNights(checkInDateTime, checkOutDateTime);
+        if (nights < 1) nights = 1;
+        return BigDecimal.valueOf(nights).multiply(BigDecimal.valueOf(pricePerNight)).setScale(2, RoundingMode.HALF_UP);
+    }
+
     private int calculateNumberOfNights(LocalDateTime checkIn, LocalDateTime checkOut) {
-        return (int) java.time.temporal.ChronoUnit.DAYS.between(
-            checkIn.toLocalDate(),
-            checkOut.toLocalDate()
-        );
+        return (int) java.time.temporal.ChronoUnit.DAYS.between(checkIn.toLocalDate(), checkOut.toLocalDate());
     }
 
-    /**
-     * Convert java.util.Date to LocalDateTime
-     */
     private LocalDateTime convertToLocalDateTime(java.util.Date date) {
-        return date.toInstant()
-            .atZone(ZoneId.systemDefault())
-            .toLocalDateTime();
+        return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
     }
 
-    /**
-     * Build the check-out response DTO with all details
-     */
     private CheckOutResponseDTO buildCheckOutResponse(
-            Reservation reservation,
-            Room room,
-            RoomType roomType,
-            Invoice invoice,
-            BigDecimal accommodationCost,
-            BigDecimal additionalServicesCost,
-            BigDecimal discountAmount,
-            BigDecimal finalAmount,
-            Discount discount,
-            LocalDateTime checkOutTime) {
+            Reservation reservation, Room room, RoomType roomType, Invoice invoice,
+            BigDecimal accommodationCost, BigDecimal additionalServicesCost,
+            BigDecimal discountAmount, BigDecimal finalAmount, Discount discount, LocalDateTime checkOutTime) {
 
         LocalDateTime checkInTime = convertToLocalDateTime(reservation.getCheckInDate());
         int numberOfNights = calculateNumberOfNights(checkInTime, checkOutTime);
-        if (numberOfNights < 1) {
-            numberOfNights = 1;
-        }
+        if (numberOfNights < 1) numberOfNights = 1;
 
         return CheckOutResponseDTO.builder()
-            .reservationId(reservation.getId())
-            .guestId(reservation.getGuestId())
-            .roomId(room.getId())
-            .roomNumber(room.getRoomNumber())
-            .checkInTime(checkInTime)
-            .checkOutTime(checkOutTime)
-            .numberOfNights(numberOfNights)
-            .roomTypeName(roomType.getName())
-            .pricePerNight(BigDecimal.valueOf(roomType.getPricePerNight()))
-            .invoiceId(invoice.getId())
-            .accommodationCost(accommodationCost)
-            .additionalServicesCost(additionalServicesCost)
-            .subtotal(accommodationCost.add(additionalServicesCost))
-            .discountId(discount != null ? discount.getId() : null)
-            .discountName(discount != null ? discount.getName() : null)
-            .discountPercentage(discount != null ? BigDecimal.valueOf(discount.getPercentage()) : null)
-            .discountAmount(discountAmount)
-            .finalAmount(finalAmount)
-            .invoiceStatus(invoice.getStatus())
-            .roomStatus(RoomStatus.AVAILABLE.name())
-            .reservationStatus(ReservationStatus.COMPLETED.name())
-            .build();
+                .reservationId(reservation.getId())
+                .guestId(reservation.getGuestId())
+                .roomId(room.getId())
+                .roomNumber(room.getRoomNumber())
+                .checkInTime(checkInTime)
+                .checkOutTime(checkOutTime)
+                .numberOfNights(numberOfNights)
+                .roomTypeName(roomType.getName())
+                .pricePerNight(BigDecimal.valueOf(roomType.getPricePerNight()))
+                .invoiceId(invoice.getId())
+                .accommodationCost(accommodationCost)
+                .additionalServicesCost(additionalServicesCost)
+                .subtotal(accommodationCost.add(additionalServicesCost))
+                .discountId(discount != null ? discount.getId() : null)
+                .discountName(discount != null ? discount.getName() : null)
+                .discountPercentage(discount != null ? BigDecimal.valueOf(discount.getPercentage()) : null)
+                .discountAmount(discountAmount)
+                .finalAmount(finalAmount)
+                .invoiceStatus(invoice.getStatus())
+                .roomStatus(RoomStatus.AVAILABLE.name())
+                .reservationStatus(ReservationStatus.COMPLETED.name())
+                .build();
     }
 }
-

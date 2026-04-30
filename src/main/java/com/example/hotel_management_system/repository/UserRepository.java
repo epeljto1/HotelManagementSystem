@@ -111,4 +111,27 @@ public class UserRepository {
         }
         return Optional.empty();
     }
+
+    public Optional<User> findById(Long id, Connection conn) throws SQLException {
+        String sql = "SELECT * FROM NBP_USER WHERE ID = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(new User(
+                            rs.getLong("ID"),
+                            rs.getLong("USER_ID"),
+                            rs.getLong("ROLE_ID"),
+                            rs.getString("USERNAME"),
+                            rs.getString("EMAIL"),
+                            null,
+                            rs.getString("ROLE"),
+                            rs.getDate("CREATED_DATE") != null ? rs.getDate("CREATED_DATE").toLocalDate() : null,
+                            null, null
+                    ));
+                }
+            }
+        }
+        return Optional.empty();
+    }
 }
