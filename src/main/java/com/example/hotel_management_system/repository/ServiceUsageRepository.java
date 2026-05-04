@@ -130,6 +130,19 @@ public class ServiceUsageRepository {
         return list;
     }
 
+    public String findServiceNameById(Long serviceId, Connection conn) throws SQLException {
+        String sql = "SELECT NAME FROM NBP_SERVICE WHERE ID = ?";
+        try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setLong(1, serviceId);
+            try (ResultSet rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("NAME");
+                }
+            }
+        }
+        return "Unknown service";
+    }
+
     private ServiceUsage mapResultSet(ResultSet rs) throws SQLException {
         return new ServiceUsage(
                 rs.getLong("ID"),

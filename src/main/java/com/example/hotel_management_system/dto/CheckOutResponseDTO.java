@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * DTO for check-out response with invoice details
@@ -19,6 +20,7 @@ public class CheckOutResponseDTO {
     // Reservation Info
     private Long reservationId;
     private Long guestId;
+    private String guestFullName;
     private Long roomId;
     private String roomNumber;
     private LocalDateTime checkInTime;
@@ -48,5 +50,7 @@ public class CheckOutResponseDTO {
     private String invoiceStatus;
     private String roomStatus;
     private String reservationStatus;
+
+    private List<ServiceUsageDTO> serviceDetails;
 }
 

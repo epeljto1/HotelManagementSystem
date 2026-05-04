@@ -148,16 +148,17 @@ public class InvoiceService {
     }
 
     private Invoice toModel(InvoiceDTO dto) {
-        return new Invoice(
-                dto.getId(),
-                dto.getIssueDate(),
-                dto.getTotalAmount(),
-                dto.getStatus(),
-                dto.getStayId(),
-                dto.getDiscountId(),
-                dto.getDiscountAmount(),
-                dto.getFinalAmount()
-        );
+        Invoice invoice = new Invoice();
+        invoice.setId(dto.getId());
+        invoice.setIssueDate(dto.getIssueDate());
+        invoice.setTotalAmount(dto.getTotalAmount());
+        invoice.setStatus(dto.getStatus());
+        invoice.setStayId(dto.getStayId());
+        invoice.setDiscountId(dto.getDiscountId());
+        invoice.setDiscountAmount(dto.getDiscountAmount());
+        invoice.setFinalAmount(dto.getFinalAmount());
+        // invoicePdf ostaje null jer se generiše naknadno
+        return invoice;
     }
 
 }

@@ -3,6 +3,7 @@ package com.example.hotel_management_system.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+
 public class Invoice {
 
     private Long id;
@@ -13,6 +14,8 @@ public class Invoice {
     private Long discountId;
     private BigDecimal discountAmount;
     private BigDecimal finalAmount;
+
+    private byte[] invoicePdf;
 
     public Invoice() {
     }
@@ -26,7 +29,7 @@ public class Invoice {
     }
 
     public Invoice(Long id, LocalDate issueDate, BigDecimal totalAmount, String status, Long stayId,
-                   Long discountId, BigDecimal discountAmount, BigDecimal finalAmount) {
+                   Long discountId, BigDecimal discountAmount, BigDecimal finalAmount, byte[] invoicePdf) {
         this.id = id;
         this.issueDate = issueDate;
         this.totalAmount = totalAmount;
@@ -35,6 +38,7 @@ public class Invoice {
         this.discountId = discountId;
         this.discountAmount = discountAmount;
         this.finalAmount = finalAmount;
+        this.invoicePdf = invoicePdf;
     }
 
     public Long getId() {
@@ -100,4 +104,14 @@ public class Invoice {
     public void setFinalAmount(BigDecimal finalAmount) {
         this.finalAmount = finalAmount;
     }
+
+    public byte[] getInvoicePdf() {
+        return invoicePdf;
+    }
+
+    public void setInvoicePdf(byte[] invoicePdf) {
+        this.invoicePdf = invoicePdf;
+    }
+
+
 }

@@ -16,4 +16,6 @@ public class Room {
     private RoomStatus status;
     private Long hotelId;
     private Long roomTypeId;
+
+    private byte[] image;
 }

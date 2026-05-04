@@ -8,6 +8,8 @@ public class ServiceUsageDTO {
     private Long id;
     private Long stayId;
     private Long serviceId;
+
+    private String serviceName; // NOVO: Polje za naziv usluge
     private Integer quantity;
     private LocalDate usageDate;
     private BigDecimal totalPrice;
@@ -15,10 +17,10 @@ public class ServiceUsageDTO {
     public ServiceUsageDTO() {
     }
 
-    public ServiceUsageDTO(Long id, Long stayId, Long serviceId, Integer quantity, LocalDate usageDate, BigDecimal totalPrice) {
+    public ServiceUsageDTO(Long id, Long stayId, String serviceName, Integer quantity, LocalDate usageDate, BigDecimal totalPrice) {
         this.id = id;
         this.stayId = stayId;
-        this.serviceId = serviceId;
+        this.serviceName = serviceName;
         this.quantity = quantity;
         this.usageDate = usageDate;
         this.totalPrice = totalPrice;
@@ -46,6 +48,14 @@ public class ServiceUsageDTO {
 
     public void setServiceId(Long serviceId) {
         this.serviceId = serviceId;
+    }
+
+    public String getServiceName() {
+        return serviceName;
+    }
+
+    public void setServiceName(String serviceName) {
+        this.serviceName = serviceName;
     }
 
     public Integer getQuantity() {

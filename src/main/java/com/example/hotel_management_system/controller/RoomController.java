@@ -2,10 +2,14 @@ package com.example.hotel_management_system.controller;
 
 import com.example.hotel_management_system.dto.RoomDTO;
 import com.example.hotel_management_system.service.RoomService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile; // VAŽNO: Dodaj ovaj import
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -18,12 +22,57 @@ public class RoomController {
         this.roomService = roomService;
     }
 
+
+    // post metoda koja omogucava dodavanje slike vec postojecim sobama u tabeli sobe
+    @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> uploadRoomImage(
+            @PathVariable Long id,
+            @RequestPart("file") MultipartFile file) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body("Fajl nije odabran ili je prazan!");
+            }
+
+            String contentType = file.getContentType();
+            if (contentType == null || !contentType.startsWith("image/")) {
+                return ResponseEntity.badRequest().body("Dozvoljeni su samo slikovni fajlovi!");
+            }
+
+            byte[] imageBytes = file.getBytes();
+            roomService.updateRoomImage(id, imageBytes);
+
+            return ResponseEntity.ok("Slika uspješno spasena za sobu ID: " + id);
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Greška pri čitanju fajla.");
+        } catch (SQLException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Greška u bazi: " + e.getMessage());
+        }
+    }
+
     @PostMapping
     public ResponseEntity<RoomDTO> createRoom(@RequestBody RoomDTO roomDTO) {
         try {
             RoomDTO createdRoom = roomService.createRoom(roomDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdRoom);
         } catch (SQLException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
+    // post metoda za unos sobe + unos slike
+    @PostMapping(value = "/with-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<RoomDTO> createRoomWithImage(
+            @ModelAttribute RoomDTO roomDTO,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            if (file != null && !file.isEmpty()) {
+                roomDTO.setImage(file.getBytes());
+            }
+
+            RoomDTO createdRoom = roomService.createRoom(roomDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdRoom);
+        } catch (IOException | SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
