@@ -10,66 +10,92 @@ import com.example.hotel_management_system.repository.RoomRepository;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Servisni sloj zadužen za upravljanje rezervacijama soba.
+ * Centralna logika ovog servisa uključuje provjeru dostupnosti soba za specifične periode,
+ * kreiranje novih rezervacija, te ažuriranje statusa postojećih.
+ * * <p>Ovaj servis osigurava da jedna soba ne može biti rezervisana od strane više gostiju
+ * u preklapajućim terminima.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
+ */
 @Service
 public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final RoomRepository roomRepository;
 
+    /**
+     * Konstruktor za Dependency Injection.
+     * * @param reservationRepository Repozitorij za rad sa rezervacijama.
+     * @param roomRepository Repozitorij za rad sa podacima o sobama.
+     */
     public ReservationService(ReservationRepository reservationRepository, RoomRepository roomRepository) {
         this.reservationRepository = reservationRepository;
         this.roomRepository = roomRepository;
     }
-/*
+
+    /**
+     * Kreira novu rezervaciju uz prethodnu validaciju dostupnosti sobe.
+     * * <p>Proces validacije:</p>
+     * 1. Konvertuje ulazne datume u SQL format.<br>
+     * 2. Poziva {@link RoomRepository#findAvailableRooms} da dobije listu slobodnih soba za taj period.<br>
+     * 3. Provjerava da li se tražena soba nalazi na listi dostupnih.<br>
+     * 4. Postavlja inicijalni status {@link ReservationStatus#PENDING} ako status nije proslijeđen.
+     * * @param dto Podaci o željenoj rezervaciji (ID sobe, datumi, broj gostiju).
+     * @return ReservationDTO Podaci o uspješno kreiranoj rezervaciji.
+     * @throws SQLException U slučaju greške sa bazom podataka.
+     * @throws RuntimeException Ako soba nije dostupna za odabrani period.
+     */
     public ReservationDTO createReservation(ReservationDTO dto) throws SQLException {
-        Reservation reservation = mapDTOToEntity(dto);
 
         try (Connection connection = DbConfig.getConnection()) {
+
+            java.sql.Date checkIn = new java.sql.Date(dto.getCheckInDate().getTime());
+            java.sql.Date checkOut = new java.sql.Date(dto.getCheckOutDate().getTime());
+
+            // Provjera dostupnosti soba direktno u bazi podataka
+            List<Room> availableRooms = RoomRepository.findAvailableRooms(
+                    connection,
+                    checkIn,
+                    checkOut
+            );
+
+            // Provjera da li je izabrana soba u skupu slobodnih soba
+            boolean isAvailable = availableRooms.stream()
+                    .anyMatch(room -> room.getId().equals(dto.getRoomId()));
+
+            if (!isAvailable) {
+                throw new RuntimeException("Soba nije dostupna za odabrani period!");
+            }
+
+            // Postavljanje podrazumijevanog statusa
+            if (dto.getStatus() == null) {
+                dto.setStatus(ReservationStatus.PENDING);
+            }
+
+            Reservation reservation = mapDTOToEntity(dto);
+
+            // Postavljanje datuma kreiranja rezervacije ako nije definisan
+            if (reservation.getReservationDate() == null) {
+                reservation.setReservationDate(new java.util.Date());
+            }
+
             reservationRepository.save(reservation, connection);
 
             return mapEntityToDTO(reservation);
         }
-    }*/
-public ReservationDTO createReservation(ReservationDTO dto) throws SQLException {
-
-    try (Connection connection = DbConfig.getConnection()) {
-
-        java.sql.Date checkIn = new java.sql.Date(dto.getCheckInDate().getTime());
-        java.sql.Date checkOut = new java.sql.Date(dto.getCheckOutDate().getTime());
-
-
-        List<Room> availableRooms = RoomRepository.findAvailableRooms(
-                connection,
-                checkIn,
-                checkOut
-        );
-
-        boolean isAvailable = availableRooms.stream()
-                .anyMatch(room -> room.getId().equals(dto.getRoomId()));
-
-        if (!isAvailable) {
-            throw new RuntimeException("Soba nije dostupna za odabrani period!");
-        }
-
-        if (dto.getStatus() == null) {
-            dto.setStatus(ReservationStatus.PENDING);
-        }
-
-        Reservation reservation = mapDTOToEntity(dto);
-
-        if (reservation.getReservationDate() == null) {
-            reservation.setReservationDate(new java.util.Date());
-        }
-        reservationRepository.save(reservation, connection);
-
-        return mapEntityToDTO(reservation);
     }
-}
 
+    /**
+     * Pronalazi rezervaciju na osnovu ID-a.
+     * * @param id Identifikator rezervacije.
+     * @return ReservationDTO ili null ako nije pronađena.
+     * @throws SQLException SQL greška.
+     */
     public ReservationDTO getReservationById(Long id) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             return reservationRepository.findById(id, connection)
@@ -78,6 +104,11 @@ public ReservationDTO createReservation(ReservationDTO dto) throws SQLException 
         }
     }
 
+    /**
+     * Vraća listu svih rezervacija u sistemu.
+     * * @return List<ReservationDTO>
+     * @throws SQLException SQL greška.
+     */
     public List<ReservationDTO> getAllReservations() throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             return reservationRepository.findAll(connection).stream()
@@ -86,6 +117,13 @@ public ReservationDTO createReservation(ReservationDTO dto) throws SQLException 
         }
     }
 
+    /**
+     * Ažurira postojeću rezervaciju.
+     * * @param id ID rezervacije.
+     * @param dto Novi podaci za ažuriranje.
+     * @return ReservationDTO Ažurirani podaci.
+     * @throws SQLException SQL greška.
+     */
     public ReservationDTO updateReservation(Long id, ReservationDTO dto) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             Reservation reservation = mapDTOToEntity(dto);
@@ -96,6 +134,12 @@ public ReservationDTO createReservation(ReservationDTO dto) throws SQLException 
         }
     }
 
+    /**
+     * Briše rezervaciju iz evidencije.
+     * * @param id ID rezervacije za brisanje.
+     * @return boolean True ako je brisanje uspješno.
+     * @throws SQLException SQL greška.
+     */
     public boolean deleteReservation(Long id) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             reservationRepository.delete(id, connection);
@@ -105,6 +149,9 @@ public ReservationDTO createReservation(ReservationDTO dto) throws SQLException 
         }
     }
 
+    /**
+     * Pomoćna metoda za mapiranje entiteta Reservation u DTO.
+     */
     private ReservationDTO mapEntityToDTO(Reservation res) {
         return new ReservationDTO(
                 res.getId(),
@@ -120,6 +167,9 @@ public ReservationDTO createReservation(ReservationDTO dto) throws SQLException 
         );
     }
 
+    /**
+     * Pomoćna metoda za mapiranje DTO-a u entitet Reservation.
+     */
     private Reservation mapDTOToEntity(ReservationDTO dto) {
         return new Reservation(
                 dto.getId(),

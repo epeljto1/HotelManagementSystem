@@ -11,26 +11,48 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
+/**
+ * DTO koji služi za definisanje marketinških kampanja i popusta u sistemu.
+ * * <p>Sadrži ugrađenu validaciju poslovnih pravila (npr. opseg procenta)
+ * i metapodatke za automatsko generisanje Swagger dokumentacije.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "Model za kreiranje i prikaz informacija o popustu")
 public class DiscountDTO {
-    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Unique identifier of the discount")
+
+    /** * Jedinstveni identifikator popusta.
+     * Postavljen na READ_ONLY jer ga generiše baza, ne unosi ga korisnik.
+     */
+    @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Jedinstveni identifikator popusta")
     private Long id;
-    @NotBlank(message = "Discount name is required")
-    @Schema(description = "Name of the discount (e.g., Summer Sale, Early Bird)", example = "Summer Sale 2026")
+
+    /** * Naziv popusta. Obavezan polje radi lakše pretrage u administraciji. */
+    @NotBlank(message = "Naziv popusta je obavezan")
+    @Schema(description = "Naziv popusta (npr. First Minute, Last Minute)", example = "Sezonski popust 2026")
     private String name;
-    @NotNull(message = "Percentage is required")
-    @Min(value = 0, message = "Percentage cannot be less than 0")
-    @Max(value = 100, message = "Percentage cannot be greater than 100")
-    @Schema(description = "Discount percentage (0.0 to 100.0)", example = "15.0")
+
+    /** * Procenat umanjenja cijene. Validiran na opseg od 0 do 100. */
+    @NotNull(message = "Procenat je obavezan")
+    @Min(value = 0, message = "Procenat ne može biti manji od 0")
+    @Max(value = 100, message = "Procenat ne može biti veći od 100")
+    @Schema(description = "Procenat popusta (0.0 do 100.0)", example = "15.0")
     private Double percentage;
-    @NotNull(message = "Start date is required")
-    @Schema(description = "Date when the discount becomes active", example = "2026-06-01")
+
+    /** * Datum početka važenja popusta. */
+    @NotNull(message = "Početni datum je obavezan")
+    @Schema(description = "Datum kada popust postaje aktivan", example = "2026-06-01")
     private LocalDate startDate;
-    @NotNull(message = "End date is required")
-    @Schema(description = "Date when the discount expires", example = "2026-08-31")
+
+    /** * Datum isteka važenja popusta. */
+    @NotNull(message = "Krajnji datum je obavezan")
+    @Schema(description = "Datum kada popust prestaje da važi", example = "2026-08-31")
     private LocalDate endDate;
-    @Schema(description = "Additional details about the discount", example = "Available for all bookings during summer season.")
+
+    /** * Opcioni opis kampanje ili uslova korištenja. */
+    @Schema(description = "Dodatni detalji o popustu", example = "Dostupno za sve rezervacije napravljene tokom ljetne sezone.")
     private String description;
 }

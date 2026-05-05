@@ -10,14 +10,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * DTO for check-out response with invoice details
+ * Sveobuhvatni DTO koji predstavlja finalni račun i izvještaj nakon odjave.
+ * * <p>Ovaj objekt služi kao podloga za generisanje digitalne fakture gosti.
+ * Agregira podatke o smještaju, konzumiranim uslugama, primijenjenim popustima
+ * i finalnim statusima svih povezanih entiteta.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class CheckOutResponseDTO {
-    // Reservation Info
+
+    // --- Informacije o Rezervaciji ---
     private Long reservationId;
     private Long guestId;
     private String guestFullName;
@@ -25,32 +31,32 @@ public class CheckOutResponseDTO {
     private String roomNumber;
     private LocalDateTime checkInTime;
     private LocalDateTime checkOutTime;
-    private Integer numberOfNights;
-    
-    // Room Type Info
+    private Integer numberOfNights; // Izračunato na osnovu check-in/out vremena
+
+    // --- Detalji o Tipu Sobe ---
     private String roomTypeName;
     private BigDecimal pricePerNight;
-    
-    // Invoice Details
+
+    // --- Finansijski Obračun (Faktura) ---
     private Long invoiceId;
-    private BigDecimal accommodationCost;
-    private BigDecimal additionalServicesCost;
-    private BigDecimal subtotal;
-    
-    // Discount Info
+    private BigDecimal accommodationCost;      // (numberOfNights * pricePerNight)
+    private BigDecimal additionalServicesCost; // Suma svih ServiceUsage stavki
+    private BigDecimal subtotal;               // accommodation + additionalServices
+
+    // --- Informacije o Popustu ---
     private Long discountId;
     private String discountName;
     private BigDecimal discountPercentage;
-    private BigDecimal discountAmount;
-    
-    // Final Amount
-    private BigDecimal finalAmount;
-    
-    // Status Updates
-    private String invoiceStatus;
-    private String roomStatus;
-    private String reservationStatus;
+    private BigDecimal discountAmount;        // Iznos koji se oduzima od subtotal-a
 
+    // --- Finalni Iznos za Plaćanje ---
+    private BigDecimal finalAmount;           // subtotal - discountAmount
+
+    // --- Statusni Podaci (Potvrda operacije) ---
+    private String invoiceStatus;     // npr. "ISSUED" ili "PAID"
+    private String roomStatus;        // npr. "CLEANING_REQUIRED" ili "AVAILABLE"
+    private String reservationStatus; // npr. "COMPLETED"
+
+    /** Detaljan prikaz svake pojedinačne dodatne usluge (mini-bar, spa, itd.) */
     private List<ServiceUsageDTO> serviceDetails;
 }
-

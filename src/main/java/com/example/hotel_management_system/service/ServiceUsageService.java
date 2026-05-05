@@ -17,6 +17,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Servisni sloj zadužen za evidenciju korištenja dodatnih usluga tokom boravka gosta.
+ * Klasa upravlja poslovnom logikom izračunavanja cijene usluge na osnovu količine
+ * i jedinične cijene, te automatski ažurira kumulativni trošak boravka (Stay).
+ * * <p>Ovaj servis direktno utiče na finalni obračun koji se prikazuje na fakturi.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
+ */
 @Service
 public class ServiceUsageService {
 
@@ -24,6 +32,9 @@ public class ServiceUsageService {
     private final ExtraServiceRepository extraServiceRepository;
     private final StayRepository stayRepository;
 
+    /**
+     * Konstruktor za ubrizgavanje zavisnosti repozitorija potrebnih za rad sa uslugama i boravcima.
+     */
     public ServiceUsageService(ServiceUsageRepository repository,
                                ExtraServiceRepository extraServiceRepository,
                                StayRepository stayRepository) {
@@ -32,6 +43,11 @@ public class ServiceUsageService {
         this.stayRepository = stayRepository;
     }
 
+    /**
+     * Dobavlja listu svih zabilježenih korištenja usluga u sistemu.
+     * * @return List<ServiceUsageDTO> Lista mapiranih DTO objekata sa nazivima usluga.
+     * @throws RuntimeException Omotač za SQLException.
+     */
     public List<ServiceUsageDTO> findAll() {
         try (Connection connection = DbConfig.getConnection()) {
             return repository.findAll(connection)
@@ -43,6 +59,11 @@ public class ServiceUsageService {
         }
     }
 
+    /**
+     * Pronalazi konkretan zapis o korištenju usluge putem ID-a.
+     * * @param id Identifikator zapisa.
+     * @return ServiceUsageDTO ili null ako zapis ne postoji.
+     */
     public ServiceUsageDTO findById(Long id) {
         try (Connection connection = DbConfig.getConnection()) {
             ServiceUsage serviceUsage = repository.findById(id, connection);
@@ -52,9 +73,20 @@ public class ServiceUsageService {
         }
     }
 
+    /**
+     * Bilježi novo korištenje usluge i ažurira ukupnu cijenu boravka.
+     * * <p>Proces uključuje:</p>
+     * 1. Provjeru postojanja usluge u katalogu.<br>
+     * 2. Izračunavanje ukupne cijene (količina * jedinična cijena).<br>
+     * 3. Spašavanje zapisa o korištenju.<br>
+     * 4. Inkrementalno ažuriranje kolone {@code actual_total_price} u tabeli Stay.
+     * * @param dto Podaci o korištenju (ID boravka, ID usluge, količina, datum).
+     * @throws RuntimeException Ako usluga nije pronađena ili dođe do SQL greške.
+     */
     public void save(ServiceUsageDTO dto) {
         try (Connection connection = DbConfig.getConnection()) {
 
+            // 1. Dobavljanje cijene iz kataloga usluga
             Optional<ExtraService> extraServiceOpt = extraServiceRepository.findById(dto.getServiceId(), connection);
             if (extraServiceOpt.isEmpty()) {
                 throw new RuntimeException("Service not found with id: " + dto.getServiceId());
@@ -62,6 +94,7 @@ public class ServiceUsageService {
 
             ExtraService extraService = extraServiceOpt.get();
 
+            // 2. Izračun ukupne cijene za ovu stavku
             BigDecimal totalPrice = BigDecimal.valueOf(extraService.getUnitPrice())
                     .multiply(BigDecimal.valueOf(dto.getQuantity()));
 
@@ -74,8 +107,10 @@ public class ServiceUsageService {
                     totalPrice
             );
 
+            // 3. Perzistencija zapisa
             repository.save(serviceUsage, connection);
 
+            // 4. Ažuriranje ukupnog duga na boravku (Stay)
             Optional<Stay> stayOpt = stayRepository.findById(dto.getStayId(), connection);
             if (stayOpt.isPresent()) {
                 Stay stay = stayOpt.get();
@@ -91,6 +126,9 @@ public class ServiceUsageService {
         }
     }
 
+    /**
+     * Ažurira postojeći zapis o korištenju usluge.
+     */
     public void update(Long id, ServiceUsageDTO dto) {
         try (Connection connection = DbConfig.getConnection()) {
             repository.update(id, toModel(dto), connection);
@@ -99,6 +137,9 @@ public class ServiceUsageService {
         }
     }
 
+    /**
+     * Briše zapis o korištenju usluge iz baze podataka.
+     */
     public void delete(Long id) {
         try (Connection connection = DbConfig.getConnection()) {
             repository.delete(id, connection);
@@ -107,6 +148,11 @@ public class ServiceUsageService {
         }
     }
 
+    /**
+     * Konvertuje entitet u DTO i obogaćuje ga nazivom usluge.
+     * Vrši dodatni upit u bazu kako bi se korisniku prikazao naziv (npr. "Doručak")
+     * umjesto samo ID broja.
+     */
     private ServiceUsageDTO toDTO(ServiceUsage serviceUsage) {
         String name = "Unknown Service";
         try (Connection connection = DbConfig.getConnection()) {
@@ -115,9 +161,9 @@ public class ServiceUsageService {
                 name = service.get().getName();
             }
         } catch (SQLException e) {
+            // Logovanje ili fallback
         }
 
-        // 2. Kreiranje DTO-a sa tačnim redoslijedom
         return new ServiceUsageDTO(
                 serviceUsage.getId(),
                 serviceUsage.getStayId(),
@@ -128,6 +174,9 @@ public class ServiceUsageService {
         );
     }
 
+    /**
+     * Konvertuje DTO u model za internu obradu.
+     */
     private ServiceUsage toModel(ServiceUsageDTO dto) {
         return new ServiceUsage(
                 dto.getId(),

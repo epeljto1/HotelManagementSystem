@@ -8,14 +8,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Repozitorijum zadužen za upravljanje korisničkim nalozima i autentifikacionim podacima.
+ * Specifičnost ovog repozitorijuma je dualni upis: sinhronizuje podatke između lokalne
+ * {@code NBP_USER} tabele i eksterne {@code NBP.NBP_USER} tabele.
+ * * <p>Ovaj pristup omogućava da hotel sistem ima svoju evidenciju korisnika,
+ * dok se stvarni identiteti čuvaju u centralizovanoj šemi baze podataka.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
+ */
 @Repository
 public class UserRepository {
 
+    /**
+     * Kreira korisnika u obe tabele. Prvo se vrši upis u eksternu šemu kako bi se
+     * dobio globalni {@code USER_ID}, koji se potom koristi kao strani ključ lokalno.
+     * * @param user Objekt korisnika sa lozinkom i ulogom.
+     * @param conn Aktivna JDBC konekcija sa podrškom za transakcije.
+     */
     public void save(User user, Connection conn) throws SQLException {
+        // 1. Korak: Kreiranje zapisa u eksternoj NBP šemi
         long generatedNbpId = createInNbpSchema(user, conn);
 
+        // Mapiranje dobijenog eksternog ID-a na lokalni model
         user.setUserId(generatedNbpId);
 
+        // 2. Korak: Kreiranje lokalne kopije zapisa u aplikativnoj šemi
         String sql = """
             INSERT INTO NBP_USER (ID, USER_ID, ROLE_ID, USERNAME, EMAIL, PASSWORD_HASH, ROLE, CREATED_DATE)
             VALUES (NBP_USER_SEQ.NEXTVAL, ?, ?, ?, ?, ?, ?, CURRENT_DATE)
@@ -31,12 +49,17 @@ public class UserRepository {
 
             ps.executeUpdate();
 
+            // Eksplicitna potvrda transakcije ako auto-commit nije aktivan
             if (!conn.getAutoCommit()) {
                 conn.commit();
             }
         }
     }
 
+    /**
+     * Pomoćna metoda za upis u sistemsku tabelu {@code NBP.NBP_USER}.
+     * Koristi {@code getGeneratedKeys} za preuzimanje ID-a koji generiše sekvenca eksterne šeme.
+     */
     private long createInNbpSchema(User user, Connection conn) throws SQLException {
         String sql = """
             INSERT INTO NBP.NBP_USER (ID, FIRST_NAME, LAST_NAME, EMAIL, PASSWORD, USERNAME, ROLE_ID)
@@ -55,7 +78,6 @@ public class UserRepository {
 
             DatabaseLogger.log(conn, "POST", "NBP_USER");
 
-
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -66,6 +88,9 @@ public class UserRepository {
         }
     }
 
+    /**
+     * Vraća listu svih korisnika bez uključivanja hash-a lozinke radi sigurnosti.
+     */
     public List<User> findAll(Connection conn) throws SQLException {
         List<User> users = new ArrayList<>();
         String sql = "SELECT * FROM NBP_USER";
@@ -78,7 +103,7 @@ public class UserRepository {
                         rs.getLong("ROLE_ID"),
                         rs.getString("USERNAME"),
                         rs.getString("EMAIL"),
-                        null, // Ne vraćamo password hash radi sigurnosti
+                        null, // Sigurnosna mera: ne vraćamo passwordHash
                         rs.getString("ROLE"),
                         rs.getDate("CREATED_DATE") != null ? rs.getDate("CREATED_DATE").toLocalDate() : null,
                         null, null
@@ -88,6 +113,10 @@ public class UserRepository {
         return users;
     }
 
+    /**
+     * Pronalazi korisnika na osnovu korisničkog imena.
+     * Koristi se primarno u procesu prijave (Login).
+     */
     public Optional<User> findByUsername(String username, Connection conn) throws SQLException {
         String sql = "SELECT * FROM NBP_USER WHERE USERNAME = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -100,11 +129,10 @@ public class UserRepository {
                             rs.getLong("ROLE_ID"),
                             rs.getString("USERNAME"),
                             rs.getString("EMAIL"),
-                            rs.getString("PASSWORD_HASH"),
+                            rs.getString("PASSWORD_HASH"), // Ovde je hash potreban radi verifikacije
                             rs.getString("ROLE"),
                             rs.getDate("CREATED_DATE") != null ? rs.getDate("CREATED_DATE").toLocalDate() : null,
-                            null, // firstName (nije u ovoj tabeli)
-                            null  // lastName (nije u ovoj tabeli)
+                            null, null
                     ));
                 }
             }
@@ -112,6 +140,9 @@ public class UserRepository {
         return Optional.empty();
     }
 
+    /**
+     * Pronalazi korisnika putem internog ID-a.
+     */
     public Optional<User> findById(Long id, Connection conn) throws SQLException {
         String sql = "SELECT * FROM NBP_USER WHERE ID = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {

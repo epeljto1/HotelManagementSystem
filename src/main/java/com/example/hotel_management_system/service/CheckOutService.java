@@ -24,6 +24,14 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Servisni sloj zadužen za upravljanje procesom odjave (Check-out) gostiju.
+ * Ova klasa koordinira radom više repozitorija kako bi izračunala troškove boravka,
+ * primijenila popuste, ažurirala status sobe i generisala finalni PDF račun.
+ * * <p>Sve operacije se izvršavaju unutar SQL transakcije kako bi se osigurala konzistentnost podataka.</p>
+ * * @author Tvoje Ime
+ * @version 1.0
+ */
 @Service
 public class CheckOutService {
 
@@ -37,6 +45,9 @@ public class CheckOutService {
     private final UserRepository userRepository;
     private final PdfInvoiceService pdfInvoiceService;
 
+    /**
+     * Konstruktor za Dependency Injection.
+     */
     public CheckOutService(
             ReservationRepository reservationRepository,
             RoomRepository roomRepository,
@@ -58,11 +69,27 @@ public class CheckOutService {
         this.pdfInvoiceService = pdfInvoiceService;
     }
 
+    /**
+     * Glavna metoda za procesiranje odjave gosta.
+     * Izvršava sljedeće korake:
+     * 1. Provjera validnosti rezervacije i statusa sobe.
+     * 2. Kreiranje ili ažuriranje zapisa o boravku (Stay).
+     * 3. Kalkulacija troškova smještaja i dodatnih usluga.
+     * 4. Primjena aktivnog popusta.
+     * 5. Generisanje PDF računa i spašavanje u bazu (BLOB).
+     * 6. Ažuriranje statusa sobe u 'AVAILABLE' i rezervacije u 'COMPLETED'.
+     *
+     * @param request DTO objekt koji sadrži ID rezervacije i opciono vrijeme odjave.
+     * @return CheckOutResponseDTO Objekt sa svim detaljima računa za prikaz korisniku.
+     * @throws SQLException Ako dođe do greške u radu sa bazom podataka.
+     * @throws ReservationNotFoundException Ako tražena rezervacija ne postoji.
+     * @throws InvalidReservationStatusException Ako rezervacija nije u statusu CONFIRMED.
+     */
     public CheckOutResponseDTO processCheckOut(CheckOutRequestDTO request) throws SQLException {
         try (Connection conn = DbConfig.getConnection()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Početak transakcije
             try {
-                // 1. Dohvatanje rezervacije
+                // 1. Dohvatanje rezervacije i osnovnih podataka
                 Reservation reservation = reservationRepository.findById(request.getReservationId(), conn)
                         .orElseThrow(() -> new ReservationNotFoundException(request.getReservationId()));
 
@@ -78,7 +105,7 @@ public class CheckOutService {
 
                 LocalDateTime checkOutTime = request.getActualCheckOutTime() != null ? request.getActualCheckOutTime() : LocalDateTime.now();
 
-                // 2. Stay
+                // 2. Upravljanje Stay zapisom
                 Stay stay = stayRepository.findById(reservation.getId(), conn).orElse(null);
                 if (stay == null) {
                     stay = new Stay();
@@ -90,13 +117,13 @@ public class CheckOutService {
                     stayRepository.save(stay, conn);
                 }
 
-                // 3. Kalkulacija troskova
+                // 3. Kalkulacija troskova smještaja
                 BigDecimal accommodationCost = calculateAccommodationCost(reservation.getCheckInDate(), checkOutTime, roomType.getPricePerNight());
 
-                // Detaljna obrada usluga
+                // Detaljna obrada i mapiranje dodatnih usluga
                 List<ServiceUsage> usages = serviceUsageRepository.findByStayId(stay.getId(), conn);
                 BigDecimal additionalServicesCost = BigDecimal.ZERO;
-                List<ServiceUsageDTO> serviceDetails = new java.util.ArrayList<>(); // Lista za DTO
+                List<ServiceUsageDTO> serviceDetails = new java.util.ArrayList<>();
 
                 if (usages != null) {
                     for (ServiceUsage u : usages) {
@@ -107,6 +134,7 @@ public class CheckOutService {
                         dto.setTotalPrice(u.getTotalPrice());
                         dto.setUsageDate(u.getUsageDate() != null ? u.getUsageDate() : LocalDate.now());
 
+                        // Dohvatanje naziva usluge za prikaz na računu
                         String serviceName = serviceUsageRepository.findServiceNameById(u.getServiceId(), conn);
                         dto.setServiceName(serviceName);
 
@@ -119,7 +147,7 @@ public class CheckOutService {
 
                 BigDecimal subtotal = accommodationCost.add(additionalServicesCost);
 
-                // Popust
+                // Logika za popust
                 Optional<Discount> activeDiscount = discountRepository.findActiveDiscountByDate(java.sql.Date.valueOf(LocalDate.now()), conn);
                 BigDecimal discountAmount = BigDecimal.ZERO;
                 Long dId = null;
@@ -130,9 +158,9 @@ public class CheckOutService {
                 }
                 BigDecimal finalAmount = subtotal.subtract(discountAmount);
 
-                // 4. Kreiranje Invoice-a
+                // 4. Kreiranje Invoice entiteta
                 if (invoiceRepository.findByStayId(stay.getId(), conn) != null) {
-                    throw new InvoiceAlreadyExistsException("Racun vec postoji.");
+                    throw new InvoiceAlreadyExistsException("Racun vec postoji za ovaj boravak.");
                 }
 
                 Invoice invoice = new Invoice();
@@ -144,32 +172,32 @@ public class CheckOutService {
                 invoice.setDiscountAmount(discountAmount);
                 invoice.setFinalAmount(finalAmount);
 
+                // Priprema podataka za PDF i odgovor korisniku
                 CheckOutResponseDTO responseDTO = buildCheckOutResponse(reservation, room, roomType, invoice, accommodationCost, additionalServicesCost, discountAmount, finalAmount, activeDiscount.orElse(null), checkOutTime);
-
                 responseDTO.setServiceDetails(serviceDetails);
 
                 String guestName = userRepository.findById(reservation.getGuestId(), conn).map(User::getUsername).orElse("Gost #" + reservation.getGuestId());
                 responseDTO.setGuestFullName(guestName);
                 responseDTO.setInvoiceId(reservation.getId());
 
-                // Generisanje PDF-a
+                // Generisanje PDF-a pozivom eksternog servisa
                 byte[] pdfBytes = pdfInvoiceService.generateInvoicePdfBytes(responseDTO);
                 invoice.setInvoicePdf(pdfBytes);
 
-                // Spasavanje u bazu
+                // Perzistencija računa
                 invoiceRepository.save(invoice, conn);
 
-                // 5. Update statusa
+                // 5. Ažuriranje statusa u bazi
                 room.setStatus(RoomStatus.AVAILABLE);
                 roomRepository.update(room, conn);
                 reservation.setStatus(ReservationStatus.COMPLETED);
                 reservationRepository.update(reservation, conn);
 
-                conn.commit();
+                conn.commit(); // Potvrda svih izmjena
                 return responseDTO;
 
             } catch (Exception e) {
-                conn.rollback();
+                conn.rollback(); // Poništavanje u slučaju bilo kakve greške
                 throw e;
             } finally {
                 conn.setAutoCommit(true);
@@ -177,6 +205,13 @@ public class CheckOutService {
         }
     }
 
+    /**
+     * Dohvata detalje već postojećeg računa na osnovu ID-a rezervacije.
+     *
+     * @param reservationId ID rezervacije za koju se traži račun.
+     * @return CheckOutResponseDTO Detalji postojećeg računa.
+     * @throws SQLException U slučaju greške sa SQL upitom.
+     */
     public CheckOutResponseDTO getCheckOutDetailsByReservationId(Long reservationId) throws SQLException {
         try (Connection conn = DbConfig.getConnection()) {
             Reservation res = reservationRepository.findById(reservationId, conn)
@@ -209,6 +244,10 @@ public class CheckOutService {
         }
     }
 
+    /**
+     * Izračunava troškove smještaja na osnovu broja noćenja i cijene po noći.
+     * Minimalan broj noćenja je 1.
+     */
     private BigDecimal calculateAccommodationCost(java.util.Date checkInDate, LocalDateTime checkOutDateTime, Double pricePerNight) {
         LocalDateTime checkInDateTime = convertToLocalDateTime(checkInDate);
         int nights = calculateNumberOfNights(checkInDateTime, checkOutDateTime);
@@ -216,14 +255,23 @@ public class CheckOutService {
         return BigDecimal.valueOf(nights).multiply(BigDecimal.valueOf(pricePerNight)).setScale(2, RoundingMode.HALF_UP);
     }
 
+    /**
+     * Izračunava razliku u danima između prijave i odjave.
+     */
     private int calculateNumberOfNights(LocalDateTime checkIn, LocalDateTime checkOut) {
         return (int) java.time.temporal.ChronoUnit.DAYS.between(checkIn.toLocalDate(), checkOut.toLocalDate());
     }
 
+    /**
+     * Pomoćna metoda za konverziju java.util.Date u LocalDateTime.
+     */
     private LocalDateTime convertToLocalDateTime(java.util.Date date) {
         return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
     }
 
+    /**
+     * Gradi finalni DTO objekt za odgovor koristeći Builder obrazac.
+     */
     private CheckOutResponseDTO buildCheckOutResponse(
             Reservation reservation, Room room, RoomType roomType, Invoice invoice,
             BigDecimal accommodationCost, BigDecimal additionalServicesCost,

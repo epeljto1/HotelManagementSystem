@@ -14,6 +14,14 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+/**
+ * Servisni sloj zadužen za upravljanje fizičkim jedinicama (sobama) unutar hotela.
+ * Omogućava manipulaciju podacima o sobama, evidenciju njihovih brojeva i spratnosti,
+ * te ključnu funkcionalnost pretrage slobodnih kapaciteta za zadati vremenski period.
+ *
+ * @author Tvoje Ime
+ * @version 1.0
+ */
 @Service
 public class RoomService {
     private final RoomRepository roomRepository;
@@ -22,6 +30,9 @@ public class RoomService {
         this.roomRepository = roomRepository;
     }
 
+    /**
+     * Kreira novu sobu u sistemu.
+     */
     public RoomDTO createRoom(RoomDTO roomDTO) throws SQLException {
         Room room = mapDTOToEntity(roomDTO);
 
@@ -32,6 +43,9 @@ public class RoomService {
         }
     }
 
+    /**
+     * Pronalazi sobu na osnovu njenog ID-a.
+     */
     public RoomDTO getRoomById(Long id) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             return roomRepository.findById(id, connection)
@@ -40,14 +54,23 @@ public class RoomService {
         }
     }
 
+    /**
+     * Dobavlja sve sobe iz baze podataka.
+     */
     public List<RoomDTO> getAllRooms() throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
-            return roomRepository.findAll(connection).stream()
+            // Osiguravamo da findAll(connection) vrati List<Room>
+            List<Room> rooms = roomRepository.findAll(connection);
+
+            return rooms.stream()
                     .map(this::mapEntityToDTO)
                     .collect(Collectors.toList());
         }
     }
 
+    /**
+     * Ažurira osnovne informacije o sobi.
+     */
     public RoomDTO updateRoom(Long id, RoomDTO roomDTO) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             Room room = mapDTOToEntity(roomDTO);
@@ -57,6 +80,10 @@ public class RoomService {
             return mapEntityToDTO(room);
         }
     }
+
+    /**
+     * Vraća listu slobodnih soba za traženi period.
+     */
     public List<RoomDTO> getAvailableRooms(LocalDate from, LocalDate to) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
 
@@ -70,6 +97,9 @@ public class RoomService {
         }
     }
 
+    /**
+     * Briše sobu iz sistema.
+     */
     public boolean deleteRoom(Long id) throws SQLException {
         try (Connection connection = DbConfig.getConnection()) {
             roomRepository.delete(id, connection);
@@ -79,6 +109,9 @@ public class RoomService {
         }
     }
 
+    /**
+     * Ažurira sliku sobe u bazi podataka.
+     */
     public void updateRoomImage(Long id, byte[] image) throws SQLException {
         try (Connection conn = DbConfig.getConnection()) {
             Room room = roomRepository.findById(id, conn)
@@ -90,6 +123,9 @@ public class RoomService {
         }
     }
 
+    /**
+     * Mapira entitet Room u RoomDTO.
+     */
     private RoomDTO mapEntityToDTO(Room room) {
         return new RoomDTO(
                 room.getId(),
@@ -102,6 +138,9 @@ public class RoomService {
         );
     }
 
+    /**
+     * Mapira RoomDTO u entitet Room.
+     */
     private Room mapDTOToEntity(RoomDTO roomDTO) {
         return new Room(
                 roomDTO.getId(),
