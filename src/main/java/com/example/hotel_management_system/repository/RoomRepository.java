@@ -99,6 +99,7 @@ public class RoomRepository {
         try (PreparedStatement ps = connection.prepareStatement(FIND_AVAILABLE_ROOMS_QUERY)) {
             ps.setDate(1, to);
             ps.setDate(2, from);
+
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     rooms.add(mapResultSetToRoom(rs));

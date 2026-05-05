@@ -51,20 +51,19 @@ public class ReservationService {
      * @throws RuntimeException Ako soba nije dostupna za odabrani period.
      */
     public ReservationDTO createReservation(ReservationDTO dto) throws SQLException {
-
         try (Connection connection = DbConfig.getConnection()) {
 
             java.sql.Date checkIn = new java.sql.Date(dto.getCheckInDate().getTime());
             java.sql.Date checkOut = new java.sql.Date(dto.getCheckOutDate().getTime());
 
-            // Provjera dostupnosti soba direktno u bazi podataka
-            List<Room> availableRooms = RoomRepository.findAvailableRooms(
+            // ISPRAVLJENO: Koristimo 'roomRepository' (malo r), ne klasu direktno
+            List<Room> availableRooms = roomRepository.findAvailableRooms(
                     connection,
                     checkIn,
                     checkOut
             );
 
-            // Provjera da li je izabrana soba u skupu slobodnih soba
+            // Provjera dostupnosti pomoću streama
             boolean isAvailable = availableRooms.stream()
                     .anyMatch(room -> room.getId().equals(dto.getRoomId()));
 
@@ -72,20 +71,17 @@ public class ReservationService {
                 throw new RuntimeException("Soba nije dostupna za odabrani period!");
             }
 
-            // Postavljanje podrazumijevanog statusa
             if (dto.getStatus() == null) {
                 dto.setStatus(ReservationStatus.PENDING);
             }
 
             Reservation reservation = mapDTOToEntity(dto);
 
-            // Postavljanje datuma kreiranja rezervacije ako nije definisan
             if (reservation.getReservationDate() == null) {
                 reservation.setReservationDate(new java.util.Date());
             }
 
             reservationRepository.save(reservation, connection);
-
             return mapEntityToDTO(reservation);
         }
     }
