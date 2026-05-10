@@ -7,6 +7,8 @@ import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Date;
 import java.util.function.Function;
 
@@ -14,7 +16,7 @@ import java.util.function.Function;
 public class JwtUtil {
 
     private static final SecretKey key = Keys.secretKeyFor(SignatureAlgorithm.HS256);
-    private static final int EXPIRATION_TIME = 3600000; // 1 sat
+    private static final long EXPIRATION_TIME = 1800000;//86400000L; // 24 sata
 
     public String generateToken(String username, String role) {
         return Jwts.builder()
@@ -33,6 +35,14 @@ public class JwtUtil {
     public String extractRole(String token) {
         Claims claims = extractAllClaims(token);
         return claims.get("role", String.class);
+    }
+
+    public LocalDateTime extractIssuedAt(String token) {
+        return toLocalDateTime(extractClaim(token, Claims::getIssuedAt));
+    }
+
+    public LocalDateTime extractExpiration(String token) {
+        return toLocalDateTime(extractClaim(token, Claims::getExpiration));
     }
 
     public boolean isTokenValid(String token) {
@@ -62,5 +72,11 @@ public class JwtUtil {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private LocalDateTime toLocalDateTime(Date date) {
+        return date.toInstant()
+                .atZone(ZoneId.systemDefault())
+                .toLocalDateTime();
     }
 }

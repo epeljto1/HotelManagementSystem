@@ -4,6 +4,7 @@ import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.UserDTO;
 import com.example.hotel_management_system.dto.UserRegistrationDTO;
 import com.example.hotel_management_system.model.User;
+import com.example.hotel_management_system.repository.JwtTokenRepository;
 import com.example.hotel_management_system.repository.UserRepository;
 import com.example.hotel_management_system.util.JwtUtil;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,13 +19,16 @@ import java.util.stream.Collectors;
 @Service
 public class UserService {
     private final UserRepository userRepository;
+    private final JwtTokenRepository jwtTokenRepository;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
     public UserService(UserRepository userRepository,
+                       JwtTokenRepository jwtTokenRepository,
                        BCryptPasswordEncoder passwordEncoder,
                        JwtUtil jwtUtil) {
         this.userRepository = userRepository;
+        this.jwtTokenRepository = jwtTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
     }
@@ -53,10 +57,25 @@ public class UserService {
                 User user = userOpt.get();
 
                 if (passwordEncoder.matches(password, user.getPasswordHash())) {
-                    return jwtUtil.generateToken(user.getUsername(), user.getRole());
+                    String token = jwtUtil.generateToken(user.getUsername(), user.getRole());
+                    jwtTokenRepository.save(
+                            token,
+                            user.getUsername(),
+                            user.getRole(),
+                            jwtUtil.extractIssuedAt(token),
+                            jwtUtil.extractExpiration(token),
+                            conn
+                    );
+                    return token;
                 }
             }
             throw new RuntimeException("Pogrešno korisničko ime ili lozinka!");
+        }
+    }
+
+    public void logout(String token) throws SQLException {
+        try (Connection conn = DbConfig.getConnection()) {
+            jwtTokenRepository.deleteByToken(token, conn);
         }
     }
 

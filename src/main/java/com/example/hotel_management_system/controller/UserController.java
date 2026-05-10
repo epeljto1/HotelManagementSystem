@@ -1,7 +1,6 @@
 package com.example.hotel_management_system.controller;
 
 import com.example.hotel_management_system.dto.UserRegistrationDTO;
-import com.example.hotel_management_system.security.TokenBlacklist;
 import com.example.hotel_management_system.service.UserService;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -14,11 +13,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
-    private final TokenBlacklist tokenBlacklist;
 
-    public UserController(UserService userService, TokenBlacklist tokenBlacklist) {
+    public UserController(UserService userService) {
         this.userService = userService;
-        this.tokenBlacklist = tokenBlacklist;
     }
     
     @PostMapping("/register")
@@ -47,7 +44,7 @@ public class UserController {
         try {
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
-                tokenBlacklist.add(token); // Dodajemo token u crnu listu u memoriji
+                userService.logout(token);
                 return ResponseEntity.ok("Uspješna odjava. Token je poništen.");
             }
             return ResponseEntity.badRequest().body("Token nedostaje u Authorization zaglavlju.");

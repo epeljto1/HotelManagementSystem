@@ -1,5 +1,7 @@
 package com.example.hotel_management_system.security;
 
+import com.example.hotel_management_system.config.DbConfig;
+import com.example.hotel_management_system.repository.JwtTokenRepository;
 import com.example.hotel_management_system.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -12,17 +14,19 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final TokenBlacklist tokenBlacklist;
+    private final JwtTokenRepository jwtTokenRepository;
 
-    public JwtAuthenticationFilter(JwtUtil jwtUtil, TokenBlacklist tokenBlacklist) {
+    public JwtAuthenticationFilter(JwtUtil jwtUtil, JwtTokenRepository jwtTokenRepository) {
         this.jwtUtil = jwtUtil;
-        this.tokenBlacklist = tokenBlacklist;
+        this.jwtTokenRepository = jwtTokenRepository;
     }
 
     @Override
@@ -39,10 +43,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
-        // AKO IMA TOKENA, PROVJERI BLACKLIST
-        if (tokenBlacklist.isBlacklisted(token)) {
+        if (!isTokenActive(token)) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Token je ponisten. Molimo prijavite se ponovo.");
+            response.getWriter().write("Token nije aktivan. Molimo prijavite se ponovo.");
             return;
         }
 
@@ -58,5 +61,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenActive(String token) {
+        try (Connection conn = DbConfig.getConnection()) {
+            return jwtTokenRepository.existsActiveToken(token, conn);
+        } catch (SQLException e) {
+            return false;
+        }
     }
 }
