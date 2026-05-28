@@ -32,6 +32,10 @@ public class ViewReportRepository {
             SELECT * FROM V_GUEST_LOYALTY_PROFILE WHERE ROWNUM <= ?
             """;
 
+    private static final String LOG_ANALITIKA_NBPT7_QUERY = """
+            SELECT * FROM V_NBP_LOG_ANALITIKA_NBPT7 WHERE ROWNUM <= ?
+            """;
+
     public ViewReportData fetchRezervacijskiPregled(Connection connection) throws SQLException {
         return fetchFromView(connection, REZERVACIJE_QUERY);
     }
@@ -46,6 +50,10 @@ public class ViewReportRepository {
 
     public ViewReportData fetchGuestLoyaltyProfile(Connection connection) throws SQLException {
         return fetchFromView(connection, LOYALTY_QUERY);
+    }
+
+    public ViewReportData fetchLogAnalitikaNbpt7(Connection connection) throws SQLException {
+        return fetchFromView(connection, LOG_ANALITIKA_NBPT7_QUERY);
     }
 
     private ViewReportData fetchFromView(Connection connection, String sql) throws SQLException {
