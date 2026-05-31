@@ -80,7 +80,10 @@
 			<version>0.12.5</version>
 			<scope>runtime</scope>
 		</dependency>
-
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-xml</artifactId>
+		</dependency>
 		<!-- KRAJ -->
 
 		<dependency>
