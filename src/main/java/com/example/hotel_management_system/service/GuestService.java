@@ -4,6 +4,7 @@ import com.example.hotel_management_system.config.DbConfig;
 import com.example.hotel_management_system.dto.GuestDTO;
 import com.example.hotel_management_system.model.Guest;
 import com.example.hotel_management_system.repository.GuestRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -15,9 +16,11 @@ import java.util.stream.Collectors;
 @Service
 public class GuestService {
     private final GuestRepository guestRepository;
+    private final JdbcTemplate jdbcTemplate;
 
-    public GuestService(GuestRepository guestRepository) {
+    public GuestService(GuestRepository guestRepository, JdbcTemplate jdbcTemplate) {
         this.guestRepository = guestRepository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     public GuestDTO createGuest(GuestDTO guestDTO) throws SQLException {
@@ -89,6 +92,13 @@ public class GuestService {
                 guestDTO.getDateOfBirth(),
                 guestDTO.getDocumentNumber(),
                 guestDTO.getAddressId()
+        );
+    }
+
+    public void insertGuestXml(String xml) {
+        jdbcTemplate.update(
+                "BEGIN INSERT_GUEST_XML(XMLTYPE(?)); END;",
+                xml
         );
     }
 }
