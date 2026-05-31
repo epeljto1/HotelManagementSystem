@@ -79,4 +79,10 @@ public class GuestController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    @PostMapping("/xml")
+    public String insertGuestFromXml(@RequestBody String xml) {
+        guestService.insertGuestXml(xml);
+        return "Guest inserted successfully";
+    }
 }
