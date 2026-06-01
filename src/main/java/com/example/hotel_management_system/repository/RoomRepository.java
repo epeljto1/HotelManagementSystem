@@ -56,6 +56,14 @@ public class RoomRepository {
         ORDER BY r.ID
     """;
 
+    private static final String ADD_ROOM_PROCEDURE_CALL = """
+        { call PKG_ROOM_MANAGEMENT.ADD_ROOM(?, ?, ?, ?, ?, ?) }
+    """;
+
+    private static final String CHANGE_ROOM_STATUS_PROCEDURE_CALL = """
+        { call PKG_ROOM_MANAGEMENT.CHANGE_ROOM_STATUS(?, ?) }
+    """;
+
     public void save(Room room, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY, new String[]{"ID"})) {
             ps.setString(1, room.getRoomNumber());
@@ -86,6 +94,42 @@ public class RoomRepository {
             }
 
             DatabaseLogger.log(connection, "POST", "NBP_ROOM");
+        }
+    }
+
+    public Long addRoomUsingPackage(Room room, Connection connection) throws SQLException {
+        try (CallableStatement cs = connection.prepareCall(ADD_ROOM_PROCEDURE_CALL)) {
+            cs.setString(1, room.getRoomNumber());
+
+            if (room.getFloorNumber() != null) {
+                cs.setInt(2, room.getFloorNumber());
+            } else {
+                cs.setNull(2, Types.INTEGER);
+            }
+
+            cs.setString(3, room.getStatus().name());
+            cs.setLong(4, room.getHotelId());
+            cs.setLong(5, room.getRoomTypeId());
+            cs.registerOutParameter(6, Types.NUMERIC);
+
+            cs.execute();
+
+            Long newRoomId = cs.getLong(6);
+            room.setId(newRoomId);
+
+            DatabaseLogger.log(connection, "POST", "NBP_ROOM");
+            return newRoomId;
+        }
+    }
+
+    public void changeRoomStatusUsingPackage(Long id, RoomStatus status, Connection connection) throws SQLException {
+        try (CallableStatement cs = connection.prepareCall(CHANGE_ROOM_STATUS_PROCEDURE_CALL)) {
+            cs.setLong(1, id);
+            cs.setString(2, status.name());
+
+            cs.execute();
+
+            DatabaseLogger.log(connection, "PUT", "NBP_ROOM");
         }
     }
 

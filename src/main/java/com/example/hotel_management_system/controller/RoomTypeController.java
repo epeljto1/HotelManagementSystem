@@ -1,5 +1,6 @@
 package com.example.hotel_management_system.controller;
 
+import com.example.hotel_management_system.dto.RoomTypePriceUpdateDTO;
 import com.example.hotel_management_system.dto.RoomTypeDTO;
 import com.example.hotel_management_system.service.RoomTypeService;
 import org.springframework.http.HttpStatus;
@@ -66,6 +67,26 @@ public class RoomTypeController {
         }
     }
 
+    @PatchMapping("/{id}/price/from-package")
+    public ResponseEntity<?> updatePriceUsingPackage(
+            @PathVariable Long id,
+            @RequestBody RoomTypePriceUpdateDTO dto) {
+        try {
+            RoomTypeDTO updated = roomTypeService.updateRoomTypePriceUsingPackage(id, dto);
+            if (updated != null) {
+                return ResponseEntity.ok(updated);
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (SQLException e) {
+            if (isPackageValidationError(e)) {
+                return ResponseEntity.badRequest().body(e.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         try {
@@ -78,5 +99,9 @@ public class RoomTypeController {
         } catch (SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private boolean isPackageValidationError(SQLException e) {
+        return e.getErrorCode() >= 20001 && e.getErrorCode() <= 20006;
     }
 }

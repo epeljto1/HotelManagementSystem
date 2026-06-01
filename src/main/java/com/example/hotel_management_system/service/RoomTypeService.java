@@ -1,6 +1,7 @@
 package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
+import com.example.hotel_management_system.dto.RoomTypePriceUpdateDTO;
 import com.example.hotel_management_system.dto.RoomTypeDTO;
 import com.example.hotel_management_system.model.RoomType;
 import com.example.hotel_management_system.repository.RoomTypeRepository;
@@ -54,6 +55,16 @@ public class RoomTypeService {
             }
         }
         return null;
+    }
+
+    public RoomTypeDTO updateRoomTypePriceUsingPackage(Long id, RoomTypePriceUpdateDTO roomTypeDTO) throws SQLException {
+        try (Connection connection = DbConfig.getConnection()) {
+            roomTypeRepository.updatePriceUsingPackage(id, roomTypeDTO.getPricePerNight(), connection);
+
+            return roomTypeRepository.findById(id, connection)
+                    .map(this::mapEntityToDTO)
+                    .orElse(null);
+        }
     }
 
     public boolean deleteRoomType(Long id) throws SQLException {

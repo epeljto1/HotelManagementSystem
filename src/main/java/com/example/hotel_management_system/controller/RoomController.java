@@ -1,8 +1,9 @@
 package com.example.hotel_management_system.controller;
 
+import com.example.hotel_management_system.dto.RoomPackageCreateDTO;
 import com.example.hotel_management_system.dto.RoomDTO;
+import com.example.hotel_management_system.dto.RoomStatusUpdateDTO;
 import com.example.hotel_management_system.service.RoomService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -56,6 +57,40 @@ public class RoomController {
             return ResponseEntity.status(HttpStatus.CREATED).body(createdRoom);
         } catch (SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/from-package")
+    public ResponseEntity<?> createRoomUsingPackage(@RequestBody RoomPackageCreateDTO roomDTO) {
+        try {
+            RoomDTO createdRoom = roomService.createRoomUsingPackage(roomDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdRoom);
+        } catch (SQLException e) {
+            if (isPackageValidationError(e)) {
+                return ResponseEntity.badRequest().body(e.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}/status/from-package")
+    public ResponseEntity<?> changeRoomStatusUsingPackage(
+            @PathVariable Long id,
+            @RequestBody RoomStatusUpdateDTO roomDTO) {
+        try {
+            RoomDTO updatedRoom = roomService.changeRoomStatusUsingPackage(id, roomDTO);
+            if (updatedRoom != null) {
+                return ResponseEntity.ok(updatedRoom);
+            }
+
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (SQLException e) {
+            if (isPackageValidationError(e)) {
+                return ResponseEntity.badRequest().body(e.getMessage());
+            }
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e.getMessage());
         }
     }
 
@@ -127,5 +162,9 @@ public class RoomController {
         } catch (SQLException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    private boolean isPackageValidationError(SQLException e) {
+        return e.getErrorCode() >= 20001 && e.getErrorCode() <= 20006;
     }
 }

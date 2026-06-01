@@ -1,7 +1,10 @@
 package com.example.hotel_management_system.service;
 
 import com.example.hotel_management_system.config.DbConfig;
+import com.example.hotel_management_system.dto.RoomPackageCreateDTO;
 import com.example.hotel_management_system.dto.RoomDTO;
+import com.example.hotel_management_system.dto.RoomStatusUpdateDTO;
+import com.example.hotel_management_system.enums.RoomStatus;
 import com.example.hotel_management_system.model.Room;
 import com.example.hotel_management_system.repository.RoomRepository;
 import org.springframework.stereotype.Service;
@@ -29,6 +32,36 @@ public class RoomService {
             roomRepository.save(room, connection);
 
             return mapEntityToDTO(room);
+        }
+    }
+
+    public RoomDTO createRoomUsingPackage(RoomPackageCreateDTO roomDTO) throws SQLException {
+        Room room = new Room(
+                null,
+                roomDTO.getRoomNumber(),
+                roomDTO.getFloorNumber(),
+                roomDTO.getStatus() != null ? roomDTO.getStatus() : RoomStatus.AVAILABLE,
+                roomDTO.getHotelId(),
+                roomDTO.getRoomTypeId(),
+                null
+        );
+
+        try (Connection connection = DbConfig.getConnection()) {
+            Long newRoomId = roomRepository.addRoomUsingPackage(room, connection);
+
+            return roomRepository.findById(newRoomId, connection)
+                    .map(this::mapEntityToDTO)
+                    .orElseGet(() -> mapEntityToDTO(room));
+        }
+    }
+
+    public RoomDTO changeRoomStatusUsingPackage(Long id, RoomStatusUpdateDTO roomDTO) throws SQLException {
+        try (Connection connection = DbConfig.getConnection()) {
+            roomRepository.changeRoomStatusUsingPackage(id, roomDTO.getStatus(), connection);
+
+            return roomRepository.findById(id, connection)
+                    .map(this::mapEntityToDTO)
+                    .orElse(null);
         }
     }
 

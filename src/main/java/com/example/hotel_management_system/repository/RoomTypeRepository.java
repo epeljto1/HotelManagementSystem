@@ -40,6 +40,10 @@ public class RoomTypeRepository {
             WHERE ID = ?
             """;
 
+    private static final String UPDATE_ROOM_TYPE_PRICE_PROCEDURE_CALL = """
+            { call PKG_ROOM_MANAGEMENT.UPDATE_ROOM_TYPE_PRICE(?, ?) }
+            """;
+
     public void save(RoomType roomType, Connection connection) throws SQLException {
         try (PreparedStatement ps = connection.prepareStatement(INSERT_QUERY)) {
             ps.setLong(1, roomType.getId());
@@ -88,6 +92,17 @@ public class RoomTypeRepository {
             ps.executeUpdate();
 
             //Logovanje akcije
+            DatabaseLogger.log(connection, "PUT", "NBP_ROOM_TYPE");
+        }
+    }
+
+    public void updatePriceUsingPackage(Long id, Double pricePerNight, Connection connection) throws SQLException {
+        try (CallableStatement cs = connection.prepareCall(UPDATE_ROOM_TYPE_PRICE_PROCEDURE_CALL)) {
+            cs.setLong(1, id);
+            cs.setDouble(2, pricePerNight);
+
+            cs.execute();
+
             DatabaseLogger.log(connection, "PUT", "NBP_ROOM_TYPE");
         }
     }
