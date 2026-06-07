@@ -1,5 +1,6 @@
 package com.example.hotel_management_system.controller;
 
+import com.example.hotel_management_system.model.mongo.UserLog;
 import com.example.hotel_management_system.service.UserActivityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -30,6 +31,17 @@ public class UserActivityController {
             return ResponseEntity.status(404).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error fetching combined data: " + e.getMessage());
+        }
+    }
+
+    @io.swagger.v3.oas.annotations.Operation(summary = "Create a new activity log in MongoDB")
+    @PostMapping("/log")
+    public ResponseEntity<UserLog> createLog(@RequestBody UserLog log) {
+        try {
+            UserLog savedLog = userActivityService.saveLog(log);
+            return ResponseEntity.status(201).body(savedLog);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
         }
     }
 }
