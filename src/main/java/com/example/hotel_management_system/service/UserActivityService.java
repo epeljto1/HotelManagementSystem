@@ -43,4 +43,11 @@ public class UserActivityService {
 
         return report;
     }
+
+    public UserLog saveLog(UserLog log) {
+        if (log.getTimestamp() == null) {
+            log.setTimestamp(java.time.LocalDateTime.now());
+        }
+        return userLogRepository.save(log);
+    }
 }
